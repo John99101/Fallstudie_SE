@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns:fx="http://javafx.com/fxml" fx:controller="src.main.java.com.bakery.controller.EmployeeController" spacing="10" alignment="CENTER">
+    <ListView fx:id="orderListView" prefHeight="200" prefWidth="300"/>
+    <ListView fx:id="inventoryListView" prefHeight="200" prefWidth="300"/>
+    <Button text="Update Inventory" onAction="#handleUpdateInventory"/>
+</VBox>
