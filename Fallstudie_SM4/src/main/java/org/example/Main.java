@@ -26,7 +26,7 @@ public class Main {
                     if (user instanceof Customer) {
                         shopService.customerInterface((Customer) user, orderService);
                     } else if (user instanceof Employee) {
-                        shopService.employeeInterface((Employee) user, orderService);
+                        shopService.employeeInterface((Employee) user, orderService, userService);
                     }
                 } else {
                     System.out.println("Invalid credentials, try again.");
@@ -78,6 +78,16 @@ class UserService {
     public void registerEmployee(String username, String password) {
         users.put(username, new Employee(username, password));
         System.out.println("Employee registered successfully.");
+    }
+
+    public List<Employee> getAllEmployees() {
+        List<Employee> employees = new ArrayList<>();
+        for (User user : users.values()) {
+            if (user instanceof Employee) {
+                employees.add((Employee) user);
+            }
+        }
+        return employees;
     }
 }
 
@@ -162,7 +172,7 @@ class ShopService {
         }
     }
 
-    public void employeeInterface(Employee employee, OrderService orderService) {
+    public void employeeInterface(Employee employee, OrderService orderService, UserService userService) {
         System.out.println("Welcome, " + employee.getUsername() + "!\n");
 
         while (true) {
@@ -174,7 +184,7 @@ class ShopService {
                     orderService.viewOrders();
                     break;
                 case 2:
-                    orderService.updateOrderProcess(employee);
+                    orderService.updateOrderProcess(employee, userService);
                     break;
                 case 3:
                     orderService.viewStock();
@@ -189,6 +199,116 @@ class ShopService {
                     System.out.println("Invalid option.");
             }
         }
+    }
+}
+
+class Order {
+    private static final String[] PROCESSES = {
+            "Recipe Being Prepared", "Cake Being Baked", "Cake Being Decorated", "Cake Being Packed", "Cake Ready for Pickup", "Cake Ready for Delivery"};
+    private int currentProcess = 0;
+    private final String customerName;
+    private final String cakeType;
+    private boolean isDelivery;
+    private boolean assignedDriver = false;
+    private boolean notified = false;
+    private Customer customer;
+    private Employee deliveryDriver;
+
+    public Order(String customerName, String cakeType) {
+        this.customerName = customerName;
+        this.cakeType = cakeType;
+    }
+
+    public void setDeliveryChoice(boolean isDelivery) {
+        this.isDelivery = isDelivery;
+    }
+
+    public boolean isDelivery() {
+        return isDelivery;
+    }
+
+    public boolean isLastProcess() {
+        return currentProcess == PROCESSES.length - 1;
+    }
+
+    public boolean isReadyForPickup() {
+        return currentProcess == PROCESSES.length - 2;
+    }
+
+    public boolean isAssignedDriver() {
+        return assignedDriver;
+    }
+
+    public void setAssignedDriver(Employee driver) {
+        this.deliveryDriver = driver;
+        this.assignedDriver = true;
+    }
+
+    public boolean isNotified() {
+        return notified;
+    }
+
+    public void setNotified(boolean notified) {
+        this.notified = notified;
+    }
+
+    public Customer getCustomer() {
+        return customer;
+    }
+
+    public void setCustomer(Customer customer) {
+        this.customer = customer;
+    }
+
+    public void nextProcess() {
+        if (currentProcess < PROCESSES.length - 1) {
+            currentProcess++;
+            System.out.println("Order updated to: " + PROCESSES[currentProcess]);
+        } else if (isDelivery && isAssignedDriver()) {
+            System.out.println("Mark as delivered? (yes/no)");
+            Scanner scanner = new Scanner(System.in);
+            String delivered = scanner.next();
+            if (delivered.equalsIgnoreCase("yes")) {
+                System.out.println("Order marked as delivered and moved to completed orders.");
+                moveToCompletedOrders();
+            }
+        } else if (!isDelivery && isReadyForPickup() && !isNotified()) {
+            System.out.println("Send message to customer that the order is ready for pickup? (yes/no)");
+            Scanner scanner = new Scanner(System.in);
+            String notify = scanner.next();
+            if (notify.equalsIgnoreCase("yes")) {
+                setNotified(true);
+                System.out.println("Message sent to customer.");
+            }
+        } else if (!isDelivery && isReadyForPickup() && isNotified()) {
+            System.out.println("Mark as picked up? (yes/no)");
+            Scanner scanner = new Scanner(System.in);
+            String pickedUp = scanner.next();
+            if (pickedUp.equalsIgnoreCase("yes")) {
+                System.out.println("Order marked as picked up and moved to completed orders.");
+                moveToCompletedOrders();
+            }
+        } else {
+            System.out.println("Order is already complete.");
+        }
+    }
+
+    private void moveToCompletedOrders() {
+        customer.getOrders().remove(this);
+        customer.getPreviousOrders().add(this);
+    }
+
+    public String getCustomerName() {
+        return customerName;
+    }
+
+    public String getCakeType() {
+        return cakeType;
+    }
+
+    @Override
+    public String toString() {
+        return "Order for " + customerName + " - " + cakeType + ", Current Status: " + PROCESSES[currentProcess];
     }
 }
 
@@ -297,12 +417,8 @@ class OrderService {
             System.out.println("You have no orders.");
         } else {
             customerOrders.forEach(order -> {
-                if (order.isReadyForPickup() && !order.isDelivery()) {
-                    if (order.isPickedUp()) {
-                        System.out.println("Order for " + order.getCustomerName() + " - " + order.getCakeType() + ", Current Status: Enjoy your Cake");
-                    } else {
-                        System.out.println(order + ", our opening times are Tue - Fr 07:00 til 20:00 and Sa 06:00 till 14:00");
-                    }
+                if (order.isDelivery() && order.isAssignedDriver()) {
+                    System.out.println("Order for " + order.getCustomerName() + " - " + order.getCakeType() + ", Current Status: Cake is being delivered");
                 } else {
                     System.out.println(order);
                 }
@@ -326,8 +442,8 @@ class OrderService {
             System.out.println("No orders found.");
         } else {
             orders.forEach(order -> {
-                if (order.isReadyForPickup() && !order.isDelivery()) {
-                    System.out.println(order.getFormattedPickupStatus());
+                if (order.isDelivery() && order.isAssignedDriver()) {
+                    System.out.println("Order for " + order.getCustomerName() + " - " + order.getCakeType() + ", Current Status: Cake Ready for Delivery");
                 } else {
                     System.out.println(order);
                 }
@@ -335,7 +451,7 @@ class OrderService {
         }
     }
 
-    public void updateOrderProcess(Employee employee) {
+    public void updateOrderProcess(Employee employee, UserService userService) {
         System.out.println("Select an order to update:");
         for (int i = 0; i < orders.size(); i++) {
             System.out.println((i + 1) + ". " + orders.get(i));
@@ -345,27 +461,62 @@ class OrderService {
         int choice = scanner.nextInt();
         if (choice > 0 && choice <= orders.size()) {
             Order order = orders.get(choice - 1);
-            if (order.isReadyForPickup() && !order.isDelivery() && !order.isNotified()) {
-                System.out.println("Order updated to: Cake Ready for Pickup");
-                System.out.println("Send a message to customer that the order is ready for pickup? (yes/no)");
-                String confirmation = scanner.next();
-                if (confirmation.equalsIgnoreCase("yes")) {
-                    order.setNotified(true);
-                    System.out.println("Message sent to customer.");
-                }
-            } else if (order.isReadyForPickup() && !order.isDelivery() && order.isNotified()) {
-                System.out.println("Mark as picked up? (yes/no)");
-                String pickedUp = scanner.next();
-                if (pickedUp.equalsIgnoreCase("yes")) {
-                    order.setPickedUp(true);
-                    orders.remove(order);
-                    completedOrders.add(order);
-                    order.getCustomer().getPreviousOrders().add(order);
-                    System.out.println("Order marked as picked up and moved to completed orders.");
-                }
+
+            if (order.isDelivery()) {
+                handleDeliveryProcess(order, userService);
             } else {
-                order.nextProcess();
+                handlePickupProcess(order);
             }
+        }
+    }
+
+    private void handleDeliveryProcess(Order order, UserService userService) {
+        Scanner scanner = new Scanner(System.in);
+
+        if (!order.isAssignedDriver()) {
+            List<Employee> employees = userService.getAllEmployees();
+            System.out.println("Assign a delivery driver:");
+            for (int i = 0; i < employees.size(); i++) {
+                System.out.println((i + 1) + ". " + employees.get(i).getUsername());
+            }
+            int driverChoice = scanner.nextInt();
+            if (driverChoice > 0 && driverChoice <= employees.size()) {
+                order.setAssignedDriver(employees.get(driverChoice - 1));
+                System.out.println("Delivery driver " + employees.get(driverChoice - 1).getUsername() + " assigned.");
+            }
+        } else {
+            System.out.println("Mark as delivered? (yes/no)");
+            String delivered = scanner.next();
+            if (delivered.equalsIgnoreCase("yes")) {
+                orders.remove(order);
+                completedOrders.add(order);
+                order.getCustomer().getPreviousOrders().add(order);
+                System.out.println("Order marked as delivered and moved to completed orders.");
+            }
+        }
+    }
+
+    private void handlePickupProcess(Order order) {
+        Scanner scanner = new Scanner(System.in);
+
+        if (order.isReadyForPickup()) {
+            System.out.println("Send message to customer that the order is ready for pickup? (yes/no)");
+            String notify = scanner.next();
+            if (notify.equalsIgnoreCase("yes")) {
+                order.setNotified(true);
+                System.out.println("Message sent to customer.");
+            }
+        } else if (order.isNotified()) {
+            System.out.println("Mark as picked up? (yes/no)");
+            String pickedUp = scanner.next();
+            if (pickedUp.equalsIgnoreCase("yes")) {
+                orders.remove(order);
+                completedOrders.add(order);
+                order.getCustomer().getPreviousOrders().add(order);
+                System.out.println("Order marked as picked up and moved to completed orders.");
+            }
+        } else {
+            order.nextProcess();
         }
     }
 
@@ -383,88 +534,5 @@ class OrderService {
         stock.forEach((ingredient, quantity) -> {
             System.out.println(ingredient + ": " + quantity);
         });
-    }
-}
-
-class Order {
-    private static final String[] PROCESSES = {
-            "Recipe Being Prepared", "Cake Being Baked", "Cake Being Decorated", "Cake Being Packed", "Cake Ready for Pickup", "Cake Ready for Delivery"};
-    private int currentProcess = 0;
-    private final String customerName;
-    private final String cakeType;
-    private boolean isDelivery;
-    private boolean pickedUp = false;
-    private boolean notified = false;
-    private Customer customer;
-
-    public Order(String customerName, String cakeType) {
-        this.customerName = customerName;
-        this.cakeType = cakeType;
-    }
-
-    public void setDeliveryChoice(boolean isDelivery) {
-        this.isDelivery = isDelivery;
-    }
-
-    public boolean isDelivery() {
-        return isDelivery;
-    }
-
-    public boolean isLastProcess() {
-        return currentProcess == PROCESSES.length - 1;
-    }
-
-    public boolean isReadyForPickup() {
-        return currentProcess == PROCESSES.length - 2;
-    }
-
-    public boolean isPickedUp() {
-        return pickedUp;
-    }
-
-    public void setPickedUp(boolean pickedUp) {
-        this.pickedUp = pickedUp;
-    }
-
-    public boolean isNotified() {
-        return notified;
-    }
-
-    public void setNotified(boolean notified) {
-        this.notified = notified;
-    }
-
-    public Customer getCustomer() {
-        return customer;
-    }
-
-    public void setCustomer(Customer customer) {
-        this.customer = customer;
-    }
-
-    public void nextProcess() {
-        if (currentProcess < PROCESSES.length - 1) {
-            currentProcess++;
-            System.out.println("Order updated to: " + PROCESSES[currentProcess]);
-        } else {
-            System.out.println("Order is already complete.");
-        }
-    }
-
-    public String getFormattedPickupStatus() {
-        return "Order for " + customerName + " - " + cakeType + ", Current Status: Cake Ready for Pickup";
-    }
-
-    public String getCustomerName() {
-        return customerName;
-    }
-
-    public String getCakeType() {
-        return cakeType;
-    }
-
-    @Override
-    public String toString() {
-        return "Order for " + customerName + " - " + cakeType + ", Current Status: " + PROCESSES[currentProcess];
     }
 }
