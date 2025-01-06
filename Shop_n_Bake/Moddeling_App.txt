@@ -1,0 +1,23 @@
+model (Handles data and database operations)
+
+    User.java: Defines the User object.
+    Cake.java: Defines the Cake object.
+    Order.java: Defines the Order object.
+    Database.java: Handles all database connections and queries.
+
+view (Handles UI)
+
+    CustomerView.java: Provides the interface for customers.
+    EmployeeView.java: Provides the interface for employees.
+    LoginView.java: Login screen for both customers and employees.
+    RegisterView.java: Registration screen.
+
+controller (Handles logic and interaction between the view and model)
+
+    UserController.java: Handles user-related operations.
+    OrderController.java: Manages orders and order statuses.
+    StockController.java: Manages stock and inventory operations.
+
+main (Entry point for the app)
+
+    Main.java: Initializes and runs the application.
