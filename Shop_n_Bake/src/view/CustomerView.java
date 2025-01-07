@@ -17,6 +17,11 @@ public class CustomerView {
     private Map<Integer, Integer> cart = new HashMap<>(); // cakeId -> quantity
     private JLabel cartLabel;
     private double totalPrice = 0.0;
+    private int userId;
+
+    public CustomerView(int userId) {
+        this.userId = userId;
+    }
 
     public void display() {
         frame = new JFrame("Customer Dashboard");
@@ -134,7 +139,6 @@ public class CustomerView {
             JOptionPane.showMessageDialog(frame, "Your cart is empty!");
             return;
         }
-        // TODO: Implement checkout process
-        JOptionPane.showMessageDialog(frame, "Proceeding to checkout...\nTotal: $" + String.format("%.2f", totalPrice));
+        new CheckoutView(cart, totalPrice, cakes, userId).display();
     }
 }

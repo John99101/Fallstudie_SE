@@ -61,11 +61,9 @@ public class LoginView {
 
                 if (user != null) {
                     if (user.isEmployee()) {
-                        JOptionPane.showMessageDialog(null, "Welcome Employee: " + user.getName());
                         new EmployeeView().display();
                     } else {
-                        JOptionPane.showMessageDialog(null, "Welcome Customer: " + user.getName());
-                        new CustomerView().display();
+                        new CustomerView(user.getId()).display();
                     }
                     frame.dispose();
                 } else {
