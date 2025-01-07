@@ -1,5 +1,7 @@
 package model;
 
+import java.sql.Timestamp;
+
 public class Order {
     private int orderId;
     private int userId;
@@ -8,6 +10,7 @@ public class Order {
     private String address; // Required for delivery
     private String paymentMethod; // PayPal, Credit Card, Invoice, etc.
     private double totalPrice;
+    private Timestamp orderDate;
 
     // Constructors
     public Order() {
@@ -78,6 +81,14 @@ public class Order {
 
     public void setTotalPrice(double totalPrice) {
         this.totalPrice = totalPrice;
+    }
+
+    public Timestamp getOrderDate() {
+        return orderDate;
+    }
+
+    public void setOrderDate(Timestamp orderDate) {
+        this.orderDate = orderDate;
     }
 
     // Overriding toString for debugging or display

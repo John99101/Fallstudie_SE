@@ -28,25 +28,31 @@ CREATE TABLE cakes (
                        stock_availability INT NOT NULL
 );
 
--- Orders Table
+-- Drop the existing orders table if needed
+DROP TABLE IF EXISTS order_details;
+DROP TABLE IF EXISTS orders;
+
+-- Create the orders table with the correct structure
 CREATE TABLE orders (
-                        order_id INT AUTO_INCREMENT PRIMARY KEY,
-                        user_id INT NOT NULL,
-                        status VARCHAR(50) NOT NULL,
-                        delivery_type VARCHAR(50) NOT NULL,
-                        address TEXT,
-                        payment_method VARCHAR(50) NOT NULL,
-                        total_price DECIMAL(10, 2) NOT NULL,
-                        FOREIGN KEY (user_id) REFERENCES users(id)
+    order_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'Processing',
+    delivery_type VARCHAR(50) NOT NULL,
+    address VARCHAR(255),
+    payment_method VARCHAR(50) NOT NULL,
+    total_price DECIMAL(10, 2) NOT NULL,
+    order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
--- Order Details Table
+-- Create the order_details table
 CREATE TABLE order_details (
-                               order_id INT NOT NULL,
-                               cake_id INT NOT NULL,
-                               quantity INT NOT NULL,
-                               FOREIGN KEY (order_id) REFERENCES orders(order_id),
-                               FOREIGN KEY (cake_id) REFERENCES cakes(cake_id)
+    order_id INT NOT NULL,
+    cake_id INT NOT NULL,
+    quantity INT NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES orders(order_id),
+    FOREIGN KEY (cake_id) REFERENCES cakes(cake_id),
+    PRIMARY KEY (order_id, cake_id)
 );
 
 -- Stock Table
@@ -96,3 +102,30 @@ INSERT INTO cakes (name, description, price, stock_availability) VALUES
 ('Black Forest', 'Chocolate cake with cherries and whipped cream', 28.99, 6),
 ('Strawberry Shortcake', 'Light vanilla cake with fresh strawberries', 27.99, 9),
 ('Cheesecake', 'New York style cheesecake with berry compote', 29.99, 7);
+
+
+-- If the column doesn't exist, add it (and this time make sure it executes)
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+
+DROP TABLE IF EXISTS order_details;
+DROP TABLE IF EXISTS orders;
+
+CREATE TABLE orders (
+    order_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'Processing',
+    delivery_type VARCHAR(50) NOT NULL,
+    address VARCHAR(255),
+    payment_method VARCHAR(50) NOT NULL,
+    total_price DECIMAL(10, 2) NOT NULL,
+    order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Insert some sample data if needed
+INSERT INTO orders (user_id, delivery_type, payment_method, total_price) 
+VALUES (1, 'Delivery', 'Credit Card', 49.98);
+
+-- Check the current structure of the orders table
+SHOW CREATE TABLE orders;

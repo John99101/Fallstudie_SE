@@ -139,6 +139,10 @@ public class CustomerView {
             JOptionPane.showMessageDialog(frame, "Your cart is empty!");
             return;
         }
-        new CheckoutView(cart, totalPrice, cakes, userId).display();
+        // Create a new CheckoutView instance but don't close the current window yet
+        CheckoutView checkoutView = new CheckoutView(cart, totalPrice, cakes, userId);
+        checkoutView.display();
+        // Only close CustomerView after successful order placement
+        // frame.dispose();  // Remove or comment out this line
     }
 }
