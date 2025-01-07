@@ -86,3 +86,13 @@ CREATE TABLE audit_log (
                            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                            FOREIGN KEY (employee_id) REFERENCES employees(employee_id)
 );
+
+INSERT INTO cakes (name, description, price, stock_availability) VALUES 
+('Chocolate Cake', 'Rich chocolate cake with dark chocolate frosting', 24.99, 10),
+('Vanilla Bean Cake', 'Classic vanilla cake with buttercream frosting', 22.99, 15),
+('Red Velvet', 'Traditional red velvet with cream cheese frosting', 26.99, 8),
+('Carrot Cake', 'Spiced carrot cake with walnuts and cream cheese frosting', 25.99, 12),
+('Lemon Drizzle', 'Light lemon cake with citrus glaze', 23.99, 10),
+('Black Forest', 'Chocolate cake with cherries and whipped cream', 28.99, 6),
+('Strawberry Shortcake', 'Light vanilla cake with fresh strawberries', 27.99, 9),
+('Cheesecake', 'New York style cheesecake with berry compote', 29.99, 7);
