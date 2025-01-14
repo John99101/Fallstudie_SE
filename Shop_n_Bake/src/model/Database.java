@@ -3,9 +3,9 @@ package model;
 import java.sql.*;
 
 public class Database {
-    private static final String URL = "jdbc:mysql://localhost:3306/bakerydb";
+    private static final String URL = "jdbc:mysql://localhost:3306/bakery_db";
     private static final String USER = "root";
-    private static final String PASSWORD = "123456";
+    private static final String PASSWORD = "IU1234";
 
     private static Connection connection;
 
