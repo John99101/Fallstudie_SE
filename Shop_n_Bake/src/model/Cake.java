@@ -5,13 +5,11 @@ public class Cake {
     private String name;
     private String description;
     private double price;
-    private int stockAvailability; // Quantity available in stock
-    private int quantity; // Quantity in the order
+    private boolean available;
+    private int quantity;
+    private int stockAvailability;
 
-    // Constructors
-    public Cake() {
-    }
-
+    // Main constructor
     public Cake(int cakeId, String name, String description, double price, int stockAvailability) {
         this.cakeId = cakeId;
         this.name = name;
@@ -20,65 +18,67 @@ public class Cake {
         this.stockAvailability = stockAvailability;
     }
 
-    // Getters and Setters
-    public int getCakeId() {
-        return cakeId;
+    // Default constructor
+    public Cake() {
+        // Empty constructor for when we need to set values later
     }
 
-    public void setCakeId(int cakeId) {
-        this.cakeId = cakeId;
+    // Getters
+    public int getCakeId() {
+        return cakeId;
     }
 
     public String getName() {
         return name;
     }
 
-    public void setName(String name) {
-        this.name = name;
-    }
-
     public String getDescription() {
         return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
     }
 
     public double getPrice() {
         return price;
     }
 
-    public void setPrice(double price) {
-        this.price = price;
-    }
-
-    public int getStockAvailability() {
-        return stockAvailability;
-    }
-
-    public void setStockAvailability(int stockAvailability) {
-        this.stockAvailability = stockAvailability;
+    public boolean isAvailable() {
+        return available;
     }
 
     public int getQuantity() {
         return quantity;
     }
 
+    public int getStockAvailability() {
+        return stockAvailability;
+    }
+
+    // Setters
+    public void setCakeId(int cakeId) {
+        this.cakeId = cakeId;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public void setPrice(double price) {
+        this.price = price;
+    }
+
+    public void setAvailable(boolean available) {
+        this.available = available;
+    }
+
     public void setQuantity(int quantity) {
         this.quantity = quantity;
     }
 
-    // Overriding toString for debugging or display
-    @Override
-    public String toString() {
-        return "Cake{" +
-                "cakeId=" + cakeId +
-                ", name='" + name + '\'' +
-                ", description='" + description + '\'' +
-                ", price=" + price +
-                ", stockAvailability=" + stockAvailability +
-                ", quantity=" + quantity +
-                '}';
+    public void setStockAvailability(int stockAvailability) {
+        this.stockAvailability = stockAvailability;
     }
 }
+
