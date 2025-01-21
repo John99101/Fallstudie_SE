@@ -8,55 +8,47 @@ import java.awt.event.ActionListener;
 public class EmployeeView {
 
     private JFrame frame;
+    private int userId;
+
+    public EmployeeView(int userId) {
+        this.userId = userId;
+    }
 
     public void display() {
         frame = new JFrame("Employee Dashboard");
-        frame.setSize(600, 400);
+        frame.setSize(800, 600);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setLayout(new GridLayout(4, 1, 10, 10));
+        frame.setLocationRelativeTo(null);
 
-        JPanel panel = new JPanel();
-        panel.setLayout(new GridLayout(5, 1, 10, 10));
-        frame.add(panel);
-
-        // Orders Button
+        // Create buttons
         JButton ordersButton = new JButton("Orders");
-        ordersButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                new OrdersView().display();
-            }
-        });
-        panel.add(ordersButton);
-
-        // Store Page Button
         JButton storePageButton = new JButton("Store Page");
-        storePageButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                new StorePageView().display();
-            }
-        });
-        panel.add(storePageButton);
-
-        // Stock Button
         JButton stockButton = new JButton("Stock");
-        stockButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                new StockView().display();
-            }
-        });
-        panel.add(stockButton);
-
-        // Closed Orders Button
         JButton closedOrdersButton = new JButton("Closed Orders");
-        closedOrdersButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                new ClosedOrdersView().display();
-            }
+
+        // Add action listeners
+        ordersButton.addActionListener(e -> {
+            new OrdersView().display();
         });
-        panel.add(closedOrdersButton);
+
+        storePageButton.addActionListener(e -> {
+            new StorePageView(userId).display();
+        });
+
+        stockButton.addActionListener(e -> {
+            // TODO: Implement stock view
+        });
+
+        closedOrdersButton.addActionListener(e -> {
+            // TODO: Implement closed orders view
+        });
+
+        // Add buttons to frame
+        frame.add(ordersButton);
+        frame.add(storePageButton);
+        frame.add(stockButton);
+        frame.add(closedOrdersButton);
 
         frame.setVisible(true);
     }

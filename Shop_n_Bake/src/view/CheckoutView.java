@@ -214,11 +214,16 @@ public class CheckoutView {
         }
 
         // Place the order
-        placeOrder(
-            deliveryTypeBox.getSelectedItem().toString(),
-            addressField.getText(),
-            paymentMethodBox.getSelectedItem().toString()
-        );
+        try {
+            processOrder(
+                deliveryTypeBox.getSelectedItem().toString(),
+                addressField.getText(),
+                paymentMethodBox.getSelectedItem().toString()
+            );
+        } catch (SQLException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(frame, "Error processing order: " + e.getMessage());
+        }
     }
 
     private boolean validateCreditCardDetails() {
@@ -244,20 +249,63 @@ public class CheckoutView {
         return true;
     }
 
-    private void placeOrder(String deliveryType, String address, String paymentMethod) {
+    private void processOrder(String deliveryType, String address, String paymentMethod) throws SQLException {
+        double totalPrice = calculateTotal();
+        
         try (Connection conn = Database.getConnection()) {
-            String sql = "INSERT INTO orders (user_id, delivery_type, address, payment_method, total_price, status, order_date) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)";
+            String sql = "INSERT INTO orders (user_id, delivery_type, address, payment_method, total_price, status) VALUES (?, ?, ?, ?, ?, ?)";
             
-            PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-            pstmt.setInt(1, userId);
-            pstmt.setString(2, deliveryType);
-            pstmt.setString(3, address);
-            pstmt.setString(4, paymentMethod);
-            pstmt.setDouble(5, totalPrice);
-            pstmt.setString(6, "Processing");
-            
-            // ... rest of the order placement code ...
+            try (PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                pstmt.setInt(1, userId);
+                pstmt.setString(2, deliveryType);
+                pstmt.setString(3, address);
+                pstmt.setString(4, paymentMethod);
+                pstmt.setDouble(5, totalPrice);
+                pstmt.setString(6, "Processing");
+                
+                pstmt.executeUpdate();
+                
+                try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        int orderId = generatedKeys.getInt(1);
+                        insertOrderDetails(orderId, conn);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(frame, "Error processing order: " + e.getMessage());
+            throw e;
         }
+    }
+
+    private double calculateTotal() {
+        double total = 0.0;
+        for (Map.Entry<Integer, Integer> entry : cart.entrySet()) {
+            Cake cake = cakes.stream()
+                .filter(c -> c.getCakeId() == entry.getKey())
+                .findFirst()
+                .orElse(null);
+            if (cake != null) {
+                total += cake.getPrice() * entry.getValue();
+            }
+        }
+        return total;
+    }
+
+    private void insertOrderDetails(int orderId, Connection conn) throws SQLException {
+        String sql = "INSERT INTO order_details (order_id, cake_id, quantity) VALUES (?, ?, ?)";
+        
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            for (Map.Entry<Integer, Integer> entry : cart.entrySet()) {
+                pstmt.setInt(1, orderId);
+                pstmt.setInt(2, entry.getKey());    // cake_id
+                pstmt.setInt(3, entry.getValue());   // quantity
+                pstmt.executeUpdate();
+            }
+        }
+        
+        JOptionPane.showMessageDialog(frame, "Order placed successfully!");
+        frame.dispose();
     }
 }
