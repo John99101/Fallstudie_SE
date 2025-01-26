@@ -153,31 +153,50 @@ public class EmployeeView {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBackground(UIManager.BG_COLOR);
 
-        // Orders Table
+        // Add refresh button
+        JButton refreshButton = UIManager.createStyledButton("Refresh Orders");
+        refreshButton.addActionListener(e -> loadOrders((DefaultTableModel) ordersTable.getModel()));
+        
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        topPanel.setBackground(UIManager.BG_COLOR);
+        topPanel.add(refreshButton);
+        panel.add(topPanel, BorderLayout.NORTH);
+
+        // Orders Table with improved columns
         String[] columnNames = {
-            UIManager.getText("Order ID"),
-            UIManager.getText("Customer"),
-            UIManager.getText("Products"),
-            UIManager.getText("Total"),
-            UIManager.getText("Status"),
-            UIManager.getText("Actions")
+            "Order ID",
+            "Customer",
+            "Products",
+            "Total",
+            "Status",
+            "Delivery Type",
+            "Address/Time",
+            "Payment Method",
+            "Actions"
         };
         
-        DefaultTableModel model = new DefaultTableModel(columnNames, 0) {
+        tableModel = new DefaultTableModel(columnNames, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return column == 5; // Only actions column is editable
+                return column == columnNames.length - 1;
             }
         };
 
-        JTable ordersTable = new JTable(model);
+        ordersTable = new JTable(tableModel);
         ordersTable.setBackground(UIManager.BG_COLOR);
         ordersTable.setForeground(UIManager.FG_COLOR);
         
-        loadOrders(model);
+        // Set up the action button column
+        ordersTable.getColumnModel().getColumn(columnNames.length - 1)
+            .setCellRenderer(new ButtonRenderer());
+        ordersTable.getColumnModel().getColumn(columnNames.length - 1)
+            .setCellEditor(new ButtonEditor(new JCheckBox()));
         
         JScrollPane scrollPane = new JScrollPane(ordersTable);
         panel.add(scrollPane, BorderLayout.CENTER);
+
+        // Initial load
+        loadOrders(tableModel);
 
         return panel;
     }
@@ -392,9 +411,75 @@ public class EmployeeView {
         productsGrid.repaint();
     }
 
-    private void showEditDialog(int cakeId, String name, String description, 
-                              BigDecimal price, boolean available) {
-        // Similar to handleAddProduct but with pre-filled values
-        // and updating instead of inserting
+    private void showEditDialog(int cakeId, String name, String description, BigDecimal price, boolean available) {
+        JDialog dialog = new JDialog(frame, "Edit Product", true);
+        dialog.setLayout(new BorderLayout(10, 10));
+        
+        JPanel inputPanel = new JPanel(new GridLayout(5, 2, 5, 5));
+        inputPanel.setBackground(UIManager.BG_COLOR);
+        
+        JTextField nameField = new JTextField(name);
+        JTextArea descField = new JTextArea(description, 3, 20);
+        JTextField priceField = new JTextField(price.toString());
+        JCheckBox availableBox = new JCheckBox("", available);
+        
+        inputPanel.add(new JLabel("Product Name:"));
+        inputPanel.add(nameField);
+        inputPanel.add(new JLabel("Description:"));
+        inputPanel.add(new JScrollPane(descField));
+        inputPanel.add(new JLabel("Price:"));
+        inputPanel.add(priceField);
+        inputPanel.add(new JLabel("Available:"));
+        inputPanel.add(availableBox);
+        
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        buttonPanel.setBackground(UIManager.BG_COLOR);
+        
+        JButton saveButton = UIManager.createStyledButton("Save");
+        JButton cancelButton = UIManager.createStyledButton("Cancel");
+        
+        saveButton.addActionListener(e -> {
+            try {
+                updateProduct(cakeId, 
+                    nameField.getText(),
+                    descField.getText(),
+                    new BigDecimal(priceField.getText()),
+                    availableBox.isSelected()
+                );
+                dialog.dispose();
+                refreshProducts();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dialog, 
+                    "Error updating product: " + ex.getMessage());
+            }
+        });
+        
+        cancelButton.addActionListener(e -> dialog.dispose());
+        
+        buttonPanel.add(saveButton);
+        buttonPanel.add(cancelButton);
+        
+        dialog.add(inputPanel, BorderLayout.CENTER);
+        dialog.add(buttonPanel, BorderLayout.SOUTH);
+        
+        dialog.pack();
+        dialog.setLocationRelativeTo(frame);
+        dialog.setVisible(true);
+    }
+
+    private void updateProduct(int cakeId, String name, String description, BigDecimal price, boolean available) {
+        try (Connection conn = Database.getConnection()) {
+            String query = "UPDATE cakes SET name = ?, description = ?, price = ?, available = ? WHERE cake_id = ?";
+            try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+                pstmt.setString(1, name);
+                pstmt.setString(2, description);
+                pstmt.setBigDecimal(3, price);
+                pstmt.setBoolean(4, available);
+                pstmt.setInt(5, cakeId);
+                pstmt.executeUpdate();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
