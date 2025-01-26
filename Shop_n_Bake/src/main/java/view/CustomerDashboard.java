@@ -18,7 +18,7 @@ import util.UIManager;
 
 public class CustomerDashboard {
     private JFrame frame;
-    private User currentUser;
+    private final User user;
     private JPanel cartPanel;
     private JPanel addressPanel;
     private JLabel totalLabel;
@@ -34,27 +34,81 @@ public class CustomerDashboard {
     private Map<Cake, Integer> cart;
     
     public CustomerDashboard(User user) {
-        this.currentUser = user;
+        this.user = user;
         this.cart = new HashMap<>();
         this.totalLabel = new JLabel("Total: €0.00");
         initialize();
     }
 
     private void initialize() {
-        frame = new JFrame("Shop 'n' Bake - " + UIManager.getText("Customer Dashboard"));
+        frame = new JFrame("Shop 'n' Bake");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(800, 600);
+        frame.setSize(1000, 600);
+        frame.setBackground(new Color(240, 240, 240));
+
+        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+        mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        mainPanel.setBackground(new Color(240, 240, 240));
+
+        // Header with welcome message and logout
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBackground(new Color(240, 240, 240));
         
-        frame.setLayout(new BorderLayout());
-        UIManager.addHeaderToFrame(frame);
+        // Welcome message
+        JLabel welcomeLabel = new JLabel("Welcome, " + user.getUsername());
+        welcomeLabel.setFont(new Font("SF Pro Display", Font.BOLD, 24));
+        welcomeLabel.setForeground(new Color(50, 50, 50));
+        headerPanel.add(welcomeLabel, BorderLayout.WEST);
         
+        // Logout button
+        JButton logoutButton = createAppleButton("Logout");
+        logoutButton.addActionListener(e -> handleLogout());
+        
+        JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        rightPanel.setBackground(new Color(240, 240, 240));
+        rightPanel.add(logoutButton);
+        headerPanel.add(rightPanel, BorderLayout.EAST);
+        
+        mainPanel.add(headerPanel, BorderLayout.NORTH);
+
         // Simplified split pane with products and cart
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         splitPane.setLeftComponent(createProductPanel());
         splitPane.setRightComponent(createCartPanel());  // Changed from createOrderPanel
         splitPane.setDividerLocation(500);
         
-        frame.add(splitPane, BorderLayout.CENTER);
+        mainPanel.add(splitPane, BorderLayout.CENTER);
+
+        frame.add(mainPanel);
+    }
+
+    private JButton createAppleButton(String text) {
+        JButton button = new JButton(text);
+        button.setFont(new Font("SF Pro Text", Font.PLAIN, 13));
+        button.setForeground(new Color(50, 50, 50));
+        button.setBackground(new Color(255, 255, 255));
+        button.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(200, 200, 200), 1),
+            BorderFactory.createEmptyBorder(5, 15, 5, 15)
+        ));
+        button.setFocusPainted(false);
+        
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                button.setBackground(new Color(245, 245, 245));
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                button.setBackground(new Color(255, 255, 255));
+            }
+        });
+        
+        return button;
+    }
+
+    private void handleLogout() {
+        frame.dispose();
+        new LoginView().display();
     }
 
     private JPanel createProductPanel() {
@@ -188,7 +242,7 @@ public class CustomerDashboard {
 
     private void handleCheckout() {
         if (!cart.isEmpty()) {
-            CheckoutView checkoutView = new CheckoutView(currentUser, cart, "");
+            CheckoutView checkoutView = new CheckoutView(user, cart, "");
             checkoutView.display();  // Display checkout view first
             frame.dispose();  // Only dispose after new view is shown
         } else {

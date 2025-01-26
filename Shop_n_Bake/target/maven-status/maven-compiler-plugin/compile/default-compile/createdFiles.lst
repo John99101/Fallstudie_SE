@@ -31,8 +31,10 @@ controller/StockController.class
 view/EmployeeView$2.class
 view/components/ButtonEditor.class
 view/StockView.class
+view/CustomerDashboard$1.class
 view/CustomerDashboard.class
 model/Order.class
+view/EmployeeView$3.class
 view/LoginView$1.class
 view/RegisterView$3.class
 controller/OrderController.class

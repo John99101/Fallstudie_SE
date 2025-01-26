@@ -29,23 +29,31 @@ public class EmployeeView {
     }
 
     private void initialize() {
-        frame = new JFrame(UIManager.getText("Employee Dashboard"));
+        frame = new JFrame("Employee Dashboard");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(1000, 600);
+        frame.setBackground(new Color(240, 240, 240));  // Light gray background
 
         mainPanel = new JPanel(new BorderLayout(10, 10));
-        mainPanel.setBackground(UIManager.BG_COLOR);
         mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        mainPanel.setBackground(new Color(240, 240, 240));
 
-        // Header with language, theme and logout
+        // Header with title and logout
         JPanel headerPanel = new JPanel(new BorderLayout());
-        headerPanel.setBackground(UIManager.BG_COLOR);
-        headerPanel.add(UIManager.createHeaderPanel(), BorderLayout.CENTER);
+        headerPanel.setBackground(new Color(240, 240, 240));
         
-        JButton logoutButton = UIManager.createStyledButton("Logout");
+        // Title
+        JLabel titleLabel = new JLabel("Employee Dashboard");
+        titleLabel.setFont(new Font("SF Pro Display", Font.BOLD, 24));
+        titleLabel.setForeground(new Color(50, 50, 50));
+        headerPanel.add(titleLabel, BorderLayout.WEST);
+        
+        // Logout button
+        JButton logoutButton = createAppleButton("Logout");
         logoutButton.addActionListener(e -> handleLogout());
+        
         JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        rightPanel.setBackground(UIManager.BG_COLOR);
+        rightPanel.setBackground(new Color(240, 240, 240));
         rightPanel.add(logoutButton);
         headerPanel.add(rightPanel, BorderLayout.EAST);
         
@@ -70,6 +78,30 @@ public class EmployeeView {
 
         mainPanel.add(tabbedPane, BorderLayout.CENTER);
         frame.add(mainPanel);
+    }
+
+    private JButton createAppleButton(String text) {
+        JButton button = new JButton(text);
+        button.setFont(new Font("SF Pro Text", Font.PLAIN, 13));
+        button.setForeground(new Color(50, 50, 50));
+        button.setBackground(new Color(255, 255, 255));
+        button.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(200, 200, 200), 1),
+            BorderFactory.createEmptyBorder(5, 15, 5, 15)
+        ));
+        button.setFocusPainted(false);
+        
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                button.setBackground(new Color(245, 245, 245));
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                button.setBackground(new Color(255, 255, 255));
+            }
+        });
+        
+        return button;
     }
 
     private JPanel createProductsPanel() {
