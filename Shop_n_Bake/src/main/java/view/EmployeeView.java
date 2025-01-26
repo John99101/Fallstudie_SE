@@ -58,11 +58,15 @@ public class EmployeeView {
 
         // Products Tab
         productsPanel = createProductsPanel();
-        tabbedPane.addTab(UIManager.getText("Manage Products"), productsPanel);
+        tabbedPane.addTab("Produkte verwalten", productsPanel);
+
+        // Stock Tab
+        JPanel stockPanel = createStockPanel();
+        tabbedPane.addTab("Lagerbestand", stockPanel);
 
         // Orders Tab
         ordersPanel = createOrdersPanel();
-        tabbedPane.addTab(UIManager.getText("Order Management"), ordersPanel);
+        tabbedPane.addTab("Bestellungsverwaltung", ordersPanel);
 
         mainPanel.add(tabbedPane, BorderLayout.CENTER);
         frame.add(mainPanel);
@@ -480,6 +484,160 @@ public class EmployeeView {
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private JPanel createStockPanel() {
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setBackground(UIManager.BG_COLOR);
+        
+        // Create table model for stock
+        String[] columnNames = {
+            "Produkt",
+            "Verfügbar",
+            "Verkauft heute",
+            "Verkauft gesamt",
+            "Status",
+            "Aktion"
+        };
+        
+        DefaultTableModel stockModel = new DefaultTableModel(columnNames, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return column == 5; // Only action column is editable
+            }
+            
+            @Override
+            public Class<?> getColumnClass(int column) {
+                if (column == 1) return Boolean.class; // For checkbox in "Verfügbar" column
+                return super.getColumnClass(column);
+            }
+        };
+        
+        JTable stockTable = new JTable(stockModel);
+        stockTable.setBackground(UIManager.BG_COLOR);
+        stockTable.setForeground(UIManager.FG_COLOR);
+        
+        // Add refresh button
+        JButton refreshButton = UIManager.createStyledButton("Aktualisieren");
+        refreshButton.addActionListener(e -> loadStockData(stockModel));
+        
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        topPanel.setBackground(UIManager.BG_COLOR);
+        topPanel.add(refreshButton);
+        
+        panel.add(topPanel, BorderLayout.NORTH);
+        panel.add(new JScrollPane(stockTable), BorderLayout.CENTER);
+        
+        // Initial load
+        loadStockData(stockModel);
+        
+        return panel;
+    }
+
+    private void loadStockData(DefaultTableModel model) {
+        model.setRowCount(0);
+        try (Connection conn = Database.getConnection()) {
+            String query = """
+                SELECT c.name, c.available, 
+                       COUNT(CASE WHEN o.created_at >= CURRENT_DATE THEN 1 END) as today_sales,
+                       COUNT(oi.order_id) as total_sales,
+                       c.cake_id
+                FROM cakes c
+                LEFT JOIN order_items oi ON c.cake_id = oi.cake_id
+                LEFT JOIN orders o ON oi.order_id = o.order_id
+                GROUP BY c.cake_id, c.name, c.available
+                ORDER BY c.name
+                """;
+                
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery(query)) {
+                
+                while (rs.next()) {
+                    String status = determineStatus(
+                        rs.getInt("today_sales"),
+                        rs.getBoolean("available")
+                    );
+                    
+                    JButton updateButton = UIManager.createStyledButton("Aktualisieren");
+                    final int cakeId = rs.getInt("cake_id");
+                    updateButton.addActionListener(e -> showStockUpdateDialog(cakeId));
+                    
+                    model.addRow(new Object[]{
+                        rs.getString("name"),
+                        rs.getBoolean("available"),
+                        rs.getInt("today_sales"),
+                        rs.getInt("total_sales"),
+                        status,
+                        updateButton
+                    });
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(frame,
+                "Error loading stock data: " + e.getMessage(),
+                "Error",
+                JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private String determineStatus(int todaySales, boolean available) {
+        if (!available) return "Nicht verfügbar";
+        if (todaySales > 10) return "Hohe Nachfrage";
+        if (todaySales > 5) return "Moderate Nachfrage";
+        return "Normale Nachfrage";
+    }
+
+    private void showStockUpdateDialog(int cakeId) {
+        JDialog dialog = new JDialog(frame, "Lagerbestand aktualisieren", true);
+        dialog.setLayout(new BorderLayout(10, 10));
+        
+        JPanel inputPanel = new JPanel(new GridLayout(2, 2, 5, 5));
+        JCheckBox availableBox = new JCheckBox("Verfügbar");
+        
+        inputPanel.add(new JLabel("Status:"));
+        inputPanel.add(availableBox);
+        
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JButton saveButton = UIManager.createStyledButton("Speichern");
+        JButton cancelButton = UIManager.createStyledButton("Abbrechen");
+        
+        saveButton.addActionListener(e -> {
+            updateProductAvailability(cakeId, availableBox.isSelected());
+            dialog.dispose();
+            loadStockData((DefaultTableModel)((JTable)((JScrollPane)((JPanel)frame
+                .getContentPane().getComponent(0)).getComponent(1))
+                .getViewport().getView()).getModel());
+        });
+        
+        cancelButton.addActionListener(e -> dialog.dispose());
+        
+        buttonPanel.add(saveButton);
+        buttonPanel.add(cancelButton);
+        
+        dialog.add(inputPanel, BorderLayout.CENTER);
+        dialog.add(buttonPanel, BorderLayout.SOUTH);
+        
+        dialog.pack();
+        dialog.setLocationRelativeTo(frame);
+        dialog.setVisible(true);
+    }
+
+    private void updateProductAvailability(int cakeId, boolean available) {
+        try (Connection conn = Database.getConnection()) {
+            String query = "UPDATE cakes SET available = ? WHERE cake_id = ?";
+            try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+                pstmt.setBoolean(1, available);
+                pstmt.setInt(2, cakeId);
+                pstmt.executeUpdate();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(frame,
+                "Error updating product availability: " + e.getMessage(),
+                "Error",
+                JOptionPane.ERROR_MESSAGE);
         }
     }
 }
