@@ -61,20 +61,18 @@ public class CustomerDashboard {
         JPanel productPanel = new JPanel(new BorderLayout());
         productPanel.setBackground(UIManager.BG_COLOR);
 
-        // Title
         JLabel titleLabel = new JLabel(UIManager.getText("Available Products"));
         titleLabel.setFont(new Font("Arial", Font.BOLD, 18));
         titleLabel.setForeground(UIManager.FG_COLOR);
         titleLabel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         productPanel.add(titleLabel, BorderLayout.NORTH);
 
-        // Products Grid
-        JPanel productsGrid = new JPanel(new GridLayout(0, 2, 10, 10));
+        // Changed to single column grid
+        JPanel productsGrid = new JPanel(new GridLayout(0, 1, 10, 10));  // Changed from GridLayout(0, 2, 10, 10)
         productsGrid.setBackground(UIManager.BG_COLOR);
         
-        // Load products from database
         try (Connection conn = Database.getConnection()) {
-            String query = "SELECT * FROM cakes";  // Removed WHERE clause
+            String query = "SELECT * FROM cakes";
             try (PreparedStatement stmt = conn.prepareStatement(query)) {
                 ResultSet rs = stmt.executeQuery();
                 while (rs.next()) {
@@ -83,7 +81,7 @@ public class CustomerDashboard {
                         rs.getString("name"),
                         rs.getString("description"),
                         rs.getBigDecimal("price"),
-                        1  // Default stock availability
+                        1
                     );
                     productsGrid.add(createProductCard(cake));
                 }
@@ -188,6 +186,16 @@ public class CustomerDashboard {
         updateCartPanel();
     }
 
+    private void handleCheckout() {
+        if (!cart.isEmpty()) {
+            CheckoutView checkoutView = new CheckoutView(currentUser, cart, "");
+            checkoutView.display();  // Display checkout view first
+            frame.dispose();  // Only dispose after new view is shown
+        } else {
+            JOptionPane.showMessageDialog(frame, "Your cart is empty!");
+        }
+    }
+
     private JPanel createCartPanel() {
         JPanel cartPanel = new JPanel(new BorderLayout());
         cartPanel.setBackground(UIManager.BG_COLOR);
@@ -206,14 +214,7 @@ public class CustomerDashboard {
         
         // Checkout button
         JButton checkoutButton = UIManager.createStyledButton("Checkout");
-        checkoutButton.addActionListener(e -> {
-            if (!cart.isEmpty()) {
-                frame.dispose();
-                new CheckoutView(currentUser, cart, "").display();
-            } else {
-                JOptionPane.showMessageDialog(frame, "Your cart is empty!");
-            }
-        });
+        checkoutButton.addActionListener(e -> handleCheckout());  // Use the new handler
         
         cartPanel.add(this.cartPanel, BorderLayout.CENTER);
         cartPanel.add(checkoutButton, BorderLayout.SOUTH);
