@@ -20,17 +20,21 @@ public class CheckoutView {
     private final BigDecimal total;
     private final List<OrderItem> items;
     
-    // Essential input fields
-    private JTextField streetField;
-    private JTextField cityField;
-    private JTextField zipField;
-    private ButtonGroup deliveryGroup;
+    // Initialize fields before using them
+    private JTextField streetField = new JTextField(20);
+    private JTextField cityField = new JTextField(20);
+    private JTextField zipField = new JTextField(10);
+    private ButtonGroup deliveryGroup = new ButtonGroup();
+    private ButtonGroup paymentGroup = new ButtonGroup();
+    private JComboBox<String> timeSlotCombo;
+    private JPanel addressPanel;
 
     public CheckoutView(User user, Map<Cake, Integer> cart, String address) {
         this.user = user;
         this.cart = cart;
         this.total = calculateTotal(cart);
         this.items = createOrderItems(cart);
+        timeSlotCombo = new JComboBox<>(generateTimeSlots());
         initialize();
     }
 
@@ -39,13 +43,17 @@ public class CheckoutView {
         frame.setLayout(new BorderLayout(10, 10));
         frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
-        // Main panel with order summary and delivery info
-        JPanel mainPanel = new JPanel(new GridLayout(2, 1, 10, 10));
+        JPanel mainPanel = new JPanel(new GridLayout(3, 1, 10, 10));
         mainPanel.add(createOrderSummaryPanel());
         mainPanel.add(createDeliveryPanel());
+        mainPanel.add(createPaymentPanel());
+        
         frame.add(mainPanel, BorderLayout.CENTER);
+        frame.add(createButtonPanel(), BorderLayout.SOUTH);
+        frame.setSize(500, 700);
+    }
 
-        // Buttons panel
+    private JPanel createButtonPanel() {
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton backButton = UIManager.createStyledButton("Back");
         backButton.addActionListener(e -> {
@@ -62,9 +70,7 @@ public class CheckoutView {
         
         buttonPanel.add(backButton);
         buttonPanel.add(confirmButton);
-        frame.add(buttonPanel, BorderLayout.SOUTH);
-
-        frame.setSize(500, 600);
+        return buttonPanel;
     }
 
     private JPanel createOrderSummaryPanel() {
@@ -113,33 +119,41 @@ public class CheckoutView {
         deliveryGroup = new ButtonGroup();
         JRadioButton pickupButton = new JRadioButton("Pickup");
         JRadioButton deliveryButton = new JRadioButton("Delivery", true);
+        
+        pickupButton.addActionListener(e -> updatePaymentOptions(true));
+        deliveryButton.addActionListener(e -> updatePaymentOptions(false));
+        
         deliveryGroup.add(pickupButton);
         deliveryGroup.add(deliveryButton);
         deliveryTypePanel.add(pickupButton);
         deliveryTypePanel.add(deliveryButton);
 
-        // Address fields
-        streetField = new JTextField(20);
-        cityField = new JTextField(20);
-        zipField = new JTextField(10);
+        // Time slot selector
+        timeSlotCombo = new JComboBox<>(generateTimeSlots());
+        timeSlotCombo.setVisible(false);
 
-        // Layout
+        // Layout components
         gbc.gridx = 0; gbc.gridy = 0;
         panel.add(new JLabel("Delivery Type:"), gbc);
         gbc.gridx = 1;
         panel.add(deliveryTypePanel, gbc);
 
         gbc.gridx = 0; gbc.gridy = 1;
+        panel.add(timeSlotCombo, gbc);
+
+        // Address fields
+        addressPanel = new JPanel(new GridBagLayout());
+        gbc.gridx = 0; gbc.gridy = 2;
         panel.add(new JLabel("Street:"), gbc);
         gbc.gridx = 1;
         panel.add(streetField, gbc);
 
-        gbc.gridx = 0; gbc.gridy = 2;
+        gbc.gridx = 0; gbc.gridy = 3;
         panel.add(new JLabel("City:"), gbc);
         gbc.gridx = 1;
         panel.add(cityField, gbc);
 
-        gbc.gridx = 0; gbc.gridy = 3;
+        gbc.gridx = 0; gbc.gridy = 4;
         panel.add(new JLabel("ZIP:"), gbc);
         gbc.gridx = 1;
         panel.add(zipField, gbc);
@@ -147,21 +161,84 @@ public class CheckoutView {
         return panel;
     }
 
+    private JPanel createPaymentPanel() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(BorderFactory.createTitledBorder("Payment Method"));
+        
+        paymentGroup = new ButtonGroup();
+        String[] methods = {"PayPal", "Credit Card", "Invoice", "Cash"};
+        
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.insets = new Insets(5, 5, 5, 5);
+        
+        for (int i = 0; i < methods.length; i++) {
+            JRadioButton button = new JRadioButton(methods[i]);
+            paymentGroup.add(button);
+            gbc.gridx = i % 2;
+            gbc.gridy = i / 2;
+            panel.add(button, gbc);
+        }
+        
+        return panel;
+    }
+
+    private String[] generateTimeSlots() {
+        ArrayList<String> slots = new ArrayList<>();
+        // Morning slots: 8:00 - 12:00
+        for (int hour = 8; hour < 12; hour++) {
+            for (int minute = 0; minute < 60; minute += 15) {
+                slots.add(String.format("%02d:%02d", hour, minute));
+            }
+        }
+        // Afternoon slots: 13:00 - 20:00
+        for (int hour = 13; hour < 20; hour++) {
+            for (int minute = 0; minute < 60; minute += 15) {
+                slots.add(String.format("%02d:%02d", hour, minute));
+            }
+        }
+        return slots.toArray(new String[0]);
+    }
+
+    private void updatePaymentOptions(boolean isPickup) {
+        // Show/hide address fields
+        addressPanel.setVisible(!isPickup);
+        timeSlotCombo.setVisible(isPickup);
+        
+        // Update available payment methods
+        for (java.util.Enumeration<AbstractButton> buttons = paymentGroup.getElements(); buttons.hasMoreElements();) {
+            JRadioButton button = (JRadioButton) buttons.nextElement();
+            if (button.getText().equals("Cash")) {
+                button.setEnabled(isPickup);
+                if (!isPickup && button.isSelected()) {
+                    paymentGroup.clearSelection();
+                }
+            }
+        }
+        
+        frame.revalidate();
+        frame.repaint();
+    }
+
     private boolean validateInputs() {
-        if (deliveryGroup.getSelection() == null) {
-            JOptionPane.showMessageDialog(frame, "Please select a delivery type");
+        if (paymentGroup.getSelection() == null) {
+            JOptionPane.showMessageDialog(frame, "Please select a payment method");
+            return false;
+        }
+
+        boolean isPickup = ((JRadioButton)deliveryGroup.getElements().nextElement()).isSelected();
+        if (isPickup && timeSlotCombo.getSelectedItem() == null) {
+            JOptionPane.showMessageDialog(frame, "Please select a pickup time");
             return false;
         }
         
-        // Only validate address for delivery
-        if (((JRadioButton)deliveryGroup.getElements().nextElement()).isSelected()) {
-            if (streetField.getText().trim().isEmpty() ||
-                cityField.getText().trim().isEmpty() ||
-                zipField.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(frame, "Please fill in all address fields");
-                return false;
-            }
+        if (!isPickup && (streetField.getText().trim().isEmpty() ||
+            cityField.getText().trim().isEmpty() ||
+            zipField.getText().trim().isEmpty())) {
+            JOptionPane.showMessageDialog(frame, "Please fill in all address fields");
+            return false;
         }
+        
         return true;
     }
 
