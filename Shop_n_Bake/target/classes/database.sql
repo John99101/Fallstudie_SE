@@ -111,6 +111,6 @@ SHOW TABLES;
 DESCRIBE users;
 
 -- Add user permissions (with a stronger password for production)
-CREATE USER IF NOT EXISTS 'root'@'localhost' IDENTIFIED BY 'YourStrongPassword123!';
+CREATE USER IF NOT EXISTS 'root'@'localhost' IDENTIFIED BY 'MySQL123!';
 GRANT ALL PRIVILEGES ON shop_n_bake.* TO 'root'@'localhost';
 FLUSH PRIVILEGES;

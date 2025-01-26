@@ -7,8 +7,8 @@ import java.sql.SQLException;
 public class Database {
     // Update these with your actual MySQL credentials
     private static final String URL = "jdbc:mysql://localhost:3306/shop_n_bake?allowPublicKeyRetrieval=true&useSSL=false";
-    private static final String USER = "root";
-    private static final String PASSWORD = "mysql1234";  // Match the password from database.sql
+    private static final String USER = "shopuser";
+    private static final String PASSWORD = "ShopPass123!";
 
     public static Connection getConnection() throws SQLException {
         return DriverManager.getConnection(URL, USER, PASSWORD);
