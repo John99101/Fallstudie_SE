@@ -36,6 +36,7 @@ public class CustomerDashboard {
     public CustomerDashboard(User user) {
         this.currentUser = user;
         this.cart = new HashMap<>();
+        this.totalLabel = new JLabel("Total: €0.00");
         initialize();
     }
 
@@ -44,19 +45,13 @@ public class CustomerDashboard {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(800, 600);
         
-        // Initialize totalLabel if it hasn't been initialized yet
-        totalLabel = new JLabel("Total: €0.00");
-        
-        // Layout
         frame.setLayout(new BorderLayout());
-        
-        // Header
         UIManager.addHeaderToFrame(frame);
         
-        // Hauptbereich mit Produktliste und Warenkorb
+        // Simplified split pane with products and cart
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         splitPane.setLeftComponent(createProductPanel());
-        splitPane.setRightComponent(createOrderPanel());
+        splitPane.setRightComponent(createCartPanel());  // Changed from createOrderPanel
         splitPane.setDividerLocation(500);
         
         frame.add(splitPane, BorderLayout.CENTER);
@@ -79,7 +74,7 @@ public class CustomerDashboard {
         
         // Load products from database
         try (Connection conn = Database.getConnection()) {
-            String query = "SELECT * FROM cakes WHERE available = true";
+            String query = "SELECT * FROM cakes";  // Removed WHERE clause
             try (PreparedStatement stmt = conn.prepareStatement(query)) {
                 ResultSet rs = stmt.executeQuery();
                 while (rs.next()) {
@@ -88,7 +83,7 @@ public class CustomerDashboard {
                         rs.getString("name"),
                         rs.getString("description"),
                         rs.getBigDecimal("price"),
-                        rs.getInt("stock_availability")
+                        1  // Default stock availability
                     );
                     productsGrid.add(createProductCard(cake));
                 }
@@ -193,84 +188,37 @@ public class CustomerDashboard {
         updateCartPanel();
     }
 
-    private JPanel createOrderPanel() {
-        JPanel orderPanel = new JPanel(new BorderLayout());
-        orderPanel.setBackground(UIManager.BG_COLOR);
-        
-        // Initialize cart panel if it hasn't been initialized yet
-        cartPanel = new JPanel();
+    private JPanel createCartPanel() {
+        JPanel cartPanel = new JPanel(new BorderLayout());
         cartPanel.setBackground(UIManager.BG_COLOR);
         
-        // Warenkorb oben
-        updateCartPanel();  // Initial update of cart panel
+        // Cart title
+        JLabel titleLabel = new JLabel(UIManager.getText("Shopping Cart"));
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 18));
+        titleLabel.setForeground(UIManager.FG_COLOR);
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        cartPanel.add(titleLabel, BorderLayout.NORTH);
         
-        // Adressfelder in der Mitte
-        addressPanel = createAddressPanel();
+        // Cart items
+        this.cartPanel = new JPanel();
+        this.cartPanel.setBackground(UIManager.BG_COLOR);
+        updateCartPanel();
         
-        // Checkout-Button unten
-        JButton checkoutButton = UIManager.createStyledButton(UIManager.getText("Checkout"));
-        checkoutButton.addActionListener(e -> handleCheckout());
+        // Checkout button
+        JButton checkoutButton = UIManager.createStyledButton("Checkout");
+        checkoutButton.addActionListener(e -> {
+            if (!cart.isEmpty()) {
+                frame.dispose();
+                new CheckoutView(currentUser, cart, "").display();
+            } else {
+                JOptionPane.showMessageDialog(frame, "Your cart is empty!");
+            }
+        });
         
-        orderPanel.add(cartPanel, BorderLayout.NORTH);
-        orderPanel.add(addressPanel, BorderLayout.CENTER);
-        orderPanel.add(checkoutButton, BorderLayout.SOUTH);
+        cartPanel.add(this.cartPanel, BorderLayout.CENTER);
+        cartPanel.add(checkoutButton, BorderLayout.SOUTH);
         
-        return orderPanel;
-    }
-
-    private JPanel createAddressPanel() {
-        JPanel panel = new JPanel(new GridLayout(5, 2, 5, 5));
-        panel.setBackground(UIManager.BG_COLOR);
-        panel.setBorder(BorderFactory.createTitledBorder(UIManager.getText("Delivery Address")));
-
-        panel.add(new JLabel(UIManager.getText("Street:")));
-        streetField = new JTextField(20);
-        panel.add(streetField);
-
-        panel.add(new JLabel(UIManager.getText("House Number:")));
-        houseNumberField = new JTextField(5);
-        panel.add(houseNumberField);
-
-        panel.add(new JLabel(UIManager.getText("ZIP Code:")));
-        zipCodeField = new JTextField(5);
-        panel.add(zipCodeField);
-
-        panel.add(new JLabel(UIManager.getText("City:")));
-        cityField = new JTextField(20);
-        panel.add(cityField);
-
-        panel.add(new JLabel(UIManager.getText("Country:")));
-        countryField = new JTextField(20);
-        panel.add(countryField);
-
-        return panel;
-    }
-
-    private void handleCheckout() {
-        // Validierung der Adressfelder
-        if (!validateAddress()) {
-            return;
-        }
-        
-        // Wenn alles okay, öffne CheckoutView
-        frame.dispose();
-        new CheckoutView(currentUser, cart, getFormattedAddress()).display();
-    }
-
-    private boolean validateAddress() {
-        // Validierung der Adressfelder
-        // ... Validierungslogik
-        return true;
-    }
-
-    private String getFormattedAddress() {
-        return String.format("%s %s, %s %s, %s",
-            streetField.getText().trim(),
-            houseNumberField.getText().trim(),
-            zipCodeField.getText().trim(),
-            cityField.getText().trim(),
-            countryField.getText().trim()
-        );
+        return cartPanel;
     }
 
     public void display() {
