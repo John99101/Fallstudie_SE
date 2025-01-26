@@ -194,10 +194,12 @@ public class CheckoutView {
     }
 
     private void updateDeliveryOptions(boolean isPickup) {
-        // Show/hide date/time selection
-        Component[] components = ((JPanel)frame.getContentPane().getComponent(0))
-            .getComponent(1).getComponents();
-        for (Component comp : components) {
+        // Find the delivery panel (it's the second panel in the main panel)
+        JPanel mainPanel = (JPanel) frame.getContentPane().getComponent(0);
+        JPanel deliveryPanel = (JPanel) mainPanel.getComponent(1);
+        
+        // Update visibility of date/time panel
+        for (Component comp : deliveryPanel.getComponents()) {
             if (comp instanceof JPanel && "dateTimePanel".equals(comp.getName())) {
                 comp.setVisible(isPickup);
             }
@@ -312,33 +314,27 @@ public class CheckoutView {
         return panel;
     }
 
-    private MaskFormatter createCardNumberFormatter() {
-        MaskFormatter formatter = null;
-        try {
-            formatter = new MaskFormatter("#### #### #### ####");
-            formatter.setPlaceholderCharacter('_');
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
-        return formatter;
-    }
-
     private void showPaymentDetails(String method) {
-        Component[] components = ((JPanel)frame.getContentPane().getComponent(0))
-            .getComponent(2).getComponents(); // Get payment panel components
+        // Find the payment panel (it's the third panel in the main panel)
+        JPanel mainPanel = (JPanel) frame.getContentPane().getComponent(0);
+        JPanel paymentPanel = (JPanel) mainPanel.getComponent(2);
         
-        for (Component comp : components) {
+        // Update visibility of payment detail panels
+        for (Component comp : paymentPanel.getComponents()) {
             if (comp instanceof JPanel) {
-                switch (comp.getName()) {
-                    case "paypalPanel":
-                        comp.setVisible(method.equals("PayPal"));
-                        break;
-                    case "cardPanel":
-                        comp.setVisible(method.equals("Credit Card"));
-                        break;
-                    case "invoicePanel":
-                        comp.setVisible(method.equals("Invoice"));
-                        break;
+                String name = comp.getName();
+                if (name != null) {
+                    switch (name) {
+                        case "paypalPanel":
+                            comp.setVisible(method.equals("PayPal"));
+                            break;
+                        case "cardPanel":
+                            comp.setVisible(method.equals("Credit Card"));
+                            break;
+                        case "invoicePanel":
+                            comp.setVisible(method.equals("Invoice"));
+                            break;
+                    }
                 }
             }
         }
@@ -354,6 +350,45 @@ public class CheckoutView {
         
         frame.revalidate();
         frame.repaint();
+    }
+
+    private MaskFormatter createCardNumberFormatter() {
+        MaskFormatter formatter = null;
+        try {
+            formatter = new MaskFormatter("#### #### #### ####");
+            formatter.setPlaceholderCharacter('_');
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        return formatter;
+    }
+
+    private void setupCreditCardPanel(JPanel panel) {
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.anchor = GridBagConstraints.WEST;
+
+        // Card number
+        gbc.gridx = 0; gbc.gridy = 0;
+        panel.add(new JLabel("Card Number:"), gbc);
+        gbc.gridx = 1;
+        panel.add(creditCardNumber, gbc);
+
+        // CVC
+        gbc.gridx = 0; gbc.gridy = 1;
+        panel.add(new JLabel("CVC:"), gbc);
+        gbc.gridx = 1;
+        panel.add(cvcField, gbc);
+
+        // Centered expiry date
+        gbc.gridx = 0; gbc.gridy = 2;
+        gbc.gridwidth = 2;
+        JPanel expiryPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        expiryPanel.add(new JLabel("Expiry:"));
+        expiryPanel.add(expiryMonth);
+        expiryPanel.add(new JLabel("/"));
+        expiryPanel.add(expiryYear);
+        panel.add(expiryPanel, gbc);
     }
 
     private String[] generateTimeSlots() {
