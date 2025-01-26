@@ -134,7 +134,7 @@ public class CheckoutView {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(5, 5, 5, 5);
 
-        // Centered delivery type selection
+        // Delivery type selection
         JPanel deliveryTypePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         deliveryGroup = new ButtonGroup();
         JRadioButton pickupButton = new JRadioButton("Pickup");
@@ -148,46 +148,58 @@ public class CheckoutView {
         deliveryTypePanel.add(pickupButton);
         deliveryTypePanel.add(deliveryButton);
 
-        // Add components with gbc
+        // Add delivery type selection
         gbc.gridx = 0; gbc.gridy = 0;
         gbc.gridwidth = 2;
         panel.add(deliveryTypePanel, gbc);
 
-        // Center date/time selection vertically with padding
-        JPanel dateTimePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 15));  // Increased vertical padding
-        dateTimePanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));  // Add vertical padding
+        // Date/time panel
+        JPanel dateTimePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 5));
         dateTimePanel.setName("dateTimePanel");
+        dateTimePanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
         dayCombo = new JComboBox<>(generateAvailableDays());
         timeSlotCombo = new JComboBox<>(generateTimeSlots());
         
         dateTimePanel.add(new JLabel("Day:"));
         dateTimePanel.add(dayCombo);
-        dateTimePanel.add(Box.createHorizontalStrut(20));  // Add space between
+        dateTimePanel.add(Box.createHorizontalStrut(20));
         dateTimePanel.add(new JLabel("Time:"));
         dateTimePanel.add(timeSlotCombo);
-        dateTimePanel.setVisible(false);
 
         gbc.gridy = 1;
         panel.add(dateTimePanel, gbc);
 
-        // Address fields
+        // Address fields with consistent formatting
         gbc.gridwidth = 1;
         gbc.gridy = 2;
+        
+        // Street
         gbc.gridx = 0;
-        panel.add(new JLabel("Street:"), gbc);
+        JLabel streetLabel = new JLabel("Street:");
+        streetLabel.setPreferredSize(new Dimension(100, streetLabel.getPreferredSize().height));
+        panel.add(streetLabel, gbc);
         gbc.gridx = 1;
+        streetField = new JTextField(20);
         panel.add(streetField, gbc);
 
+        // City
         gbc.gridy = 3;
         gbc.gridx = 0;
-        panel.add(new JLabel("City:"), gbc);
+        JLabel cityLabel = new JLabel("City:");
+        cityLabel.setPreferredSize(new Dimension(100, cityLabel.getPreferredSize().height));
+        panel.add(cityLabel, gbc);
         gbc.gridx = 1;
+        cityField = new JTextField(20);
         panel.add(cityField, gbc);
 
+        // ZIP
         gbc.gridy = 4;
         gbc.gridx = 0;
-        panel.add(new JLabel("ZIP:"), gbc);
+        JLabel zipLabel = new JLabel("ZIP:");
+        zipLabel.setPreferredSize(new Dimension(100, zipLabel.getPreferredSize().height));
+        panel.add(zipLabel, gbc);
         gbc.gridx = 1;
+        zipField = new JTextField(20);
         panel.add(zipField, gbc);
 
         return panel;
