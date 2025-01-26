@@ -500,19 +500,14 @@ public class CheckoutView {
         try (Connection conn = Database.getConnection()) {
             conn.setAutoCommit(false);
             try {
-                String orderQuery = "INSERT INTO orders (user_id, total, status, delivery_address) VALUES (?, ?, ?, ?)";
+                // Create order
+                String orderQuery = "INSERT INTO orders (user_id, total, status) VALUES (?, ?, ?)";
                 int orderId;
                 
-                String address = String.format("%s, %s %s",
-                    streetField.getText().trim(),
-                    cityField.getText().trim(),
-                    zipField.getText().trim());
-
                 try (PreparedStatement pstmt = conn.prepareStatement(orderQuery, Statement.RETURN_GENERATED_KEYS)) {
                     pstmt.setInt(1, user.getId());
                     pstmt.setBigDecimal(2, total);
-                    pstmt.setString(3, "Pending");
-                    pstmt.setString(4, address);
+                    pstmt.setString(3, "pending");
                     pstmt.executeUpdate();
                     
                     try (ResultSet rs = pstmt.getGeneratedKeys()) {
@@ -524,12 +519,14 @@ public class CheckoutView {
                     }
                 }
 
-                String itemQuery = "INSERT INTO order_items (order_id, cake_id, quantity) VALUES (?, ?, ?)";
+                // Insert order items with price
+                String itemQuery = "INSERT INTO order_items (order_id, cake_id, quantity, price) VALUES (?, ?, ?, ?)";
                 try (PreparedStatement pstmt = conn.prepareStatement(itemQuery)) {
                     for (OrderItem item : items) {
                         pstmt.setInt(1, orderId);
                         pstmt.setInt(2, item.getCake().getId());
                         pstmt.setInt(3, item.getQuantity());
+                        pstmt.setBigDecimal(4, item.getCake().getPrice());
                         pstmt.executeUpdate();
                     }
                 }
@@ -538,6 +535,7 @@ public class CheckoutView {
                 JOptionPane.showMessageDialog(frame, "Order placed successfully!");
                 frame.dispose();
                 new CustomerDashboard(user).display();
+                
             } catch (SQLException e) {
                 conn.rollback();
                 throw e;
