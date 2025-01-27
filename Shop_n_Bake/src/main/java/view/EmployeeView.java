@@ -545,25 +545,25 @@ public class EmployeeView {
             "Verkauft heute",
             "Verkauft gesamt",
             "Lagerbestand",
-            "Status",
-            "Aktion"
-        };
+            "Status"
+        };  // Removed "Aktion" column
         
         DefaultTableModel stockModel = new DefaultTableModel(columnNames, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return column == 5; // Only status column is editable
+                return column == 1 || column == 5; // Only available and status columns are editable
             }
             
             @Override
             public Class<?> getColumnClass(int column) {
+                if (column == 1) return Boolean.class;
                 if (column == 5) return String.class;
                 return super.getColumnClass(column);
             }
         };
         
         JTable stockTable = new JTable(stockModel);
-        stockTable.setRowHeight(35);
+        stockTable.setRowHeight(25);  // Reduced row height
         
         // Create a ComboBox for the status column
         JComboBox<String> statusCombo = new JComboBox<>(new String[]{
@@ -577,13 +577,41 @@ public class EmployeeView {
         TableColumn statusColumn = stockTable.getColumnModel().getColumn(5);
         statusColumn.setCellEditor(new DefaultCellEditor(statusCombo));
         
-        // Add listener for status changes
-        statusCombo.addActionListener(e -> {
-            int row = stockTable.getSelectedRow();
-            if (row != -1) {
+        // Add checkbox renderer and editor for the available column
+        TableColumn availableColumn = stockTable.getColumnModel().getColumn(1);
+        availableColumn.setCellRenderer(new DefaultTableCellRenderer() {
+            private final JCheckBox checkbox = new JCheckBox();
+            
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value,
+                    boolean isSelected, boolean hasFocus, int row, int column) {
+                if (value instanceof Boolean) {
+                    checkbox.setSelected((Boolean) value);
+                    // Disable checkbox if stock is 0
+                    String stockStr = (String) table.getValueAt(row, 4);
+                    int stock = Integer.parseInt(stockStr.split(" ")[0]);
+                    checkbox.setEnabled(stock > 0);
+                }
+                return checkbox;
+            }
+        });
+        
+        availableColumn.setCellEditor(new DefaultCellEditor(new JCheckBox()) {
+            @Override
+            public boolean stopCellEditing() {
+                int row = stockTable.getEditingRow();
+                String stockStr = (String) stockModel.getValueAt(row, 4);
+                int stock = Integer.parseInt(stockStr.split(" ")[0]);
+                if (stock == 0) {
+                    return false; // Prevent editing if stock is 0
+                }
+                
+                // Update availability in database
                 String productName = (String) stockModel.getValueAt(row, 0);
-                String newStatus = (String) statusCombo.getSelectedItem();
-                updateDemandStatus(productName, newStatus);
+                boolean newValue = (Boolean) getCellEditorValue();
+                updateAvailability(productName, newValue);
+                
+                return super.stopCellEditing();
             }
         });
         
@@ -636,8 +664,7 @@ public class EmployeeView {
                         rs.getInt("today_sales"),
                         rs.getInt("total_sales"),
                         remainingStock + " verfügbar",
-                        rs.getString("demand_status"),  // Now just a String, not a JComboBox
-                        "Aktualisieren"
+                        rs.getString("demand_status")  // Now just a String, not a JComboBox
                     });
                 }
             }
@@ -650,18 +677,18 @@ public class EmployeeView {
         }
     }
 
-    private void updateDemandStatus(String productName, String newStatus) {
+    private void updateAvailability(String productName, boolean available) {
         try (Connection conn = Database.getConnection()) {
-            String query = "UPDATE cakes SET demand_status = ? WHERE name = ?";
+            String query = "UPDATE cakes SET available = ? WHERE name = ?";
             try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-                pstmt.setString(1, newStatus);
+                pstmt.setBoolean(1, available);
                 pstmt.setString(2, productName);
                 pstmt.executeUpdate();
             }
         } catch (SQLException e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(frame,
-                "Error updating demand status: " + e.getMessage(),
+                "Error updating availability: " + e.getMessage(),
                 "Error",
                 JOptionPane.ERROR_MESSAGE);
         }
