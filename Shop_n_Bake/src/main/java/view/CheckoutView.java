@@ -71,6 +71,41 @@ public class CheckoutView {
         frame.add(mainPanel, BorderLayout.CENTER);
         frame.add(createButtonPanel(), BorderLayout.SOUTH);
         frame.setSize(500, 700);
+
+        // Initially hide date/time fields since delivery is default
+        JPanel dateTimePanel = findDateTimePanel();
+        if (dateTimePanel != null) {
+            dateTimePanel.setVisible(false);
+        }
+
+        // Make sure delivery is selected by default and address fields are shown
+        JRadioButton deliveryButton = new JRadioButton("Delivery", true);
+        JRadioButton pickupButton = new JRadioButton("Pickup");
+        deliveryGroup.add(deliveryButton);
+        deliveryGroup.add(pickupButton);
+
+        // Add listeners to handle visibility
+        deliveryButton.addActionListener(e -> {
+            if (dateTimePanel != null) {
+                dateTimePanel.setVisible(false);
+            }
+            addressPanel.setVisible(true);
+        });
+
+        pickupButton.addActionListener(e -> {
+            if (dateTimePanel != null) {
+                dateTimePanel.setVisible(true);
+            }
+            addressPanel.setVisible(false);
+        });
+
+        // Ensure consistent field sizes
+        Dimension fieldSize = new Dimension(200, 25); // Standard size for all fields
+        streetField.setPreferredSize(fieldSize);
+        cityField.setPreferredSize(fieldSize);
+        zipField.setPreferredSize(fieldSize);
+        dayCombo.setPreferredSize(fieldSize);
+        timeSlotCombo.setPreferredSize(fieldSize);
     }
 
     private JPanel createButtonPanel() {
@@ -133,195 +168,122 @@ public class CheckoutView {
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.anchor = GridBagConstraints.WEST;
 
         // Delivery type selection
         JPanel deliveryTypePanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        deliveryGroup = new ButtonGroup();
         JRadioButton pickupButton = new JRadioButton("Pickup");
         JRadioButton deliveryButton = new JRadioButton("Delivery", true);
-        
-        pickupButton.addActionListener(e -> updateDeliveryOptions(true));
-        deliveryButton.addActionListener(e -> updateDeliveryOptions(false));
-        
         deliveryGroup.add(pickupButton);
         deliveryGroup.add(deliveryButton);
         deliveryTypePanel.add(pickupButton);
         deliveryTypePanel.add(deliveryButton);
 
-        // Add delivery type selection
-        gbc.gridx = 0; gbc.gridy = 0;
+        gbc.gridx = 0;
+        gbc.gridy = 0;
         gbc.gridwidth = 2;
         panel.add(deliveryTypePanel, gbc);
 
         // Date/time panel
-        JPanel dateTimePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 5));
+        JPanel dateTimePanel = new JPanel(new GridBagLayout());
         dateTimePanel.setName("dateTimePanel");
         dateTimePanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
-        dayCombo = new JComboBox<>(generateAvailableDays());
-        timeSlotCombo = new JComboBox<>(generateTimeSlots());
         
-        dateTimePanel.add(new JLabel("Day:"));
-        dateTimePanel.add(dayCombo);
-        dateTimePanel.add(Box.createHorizontalStrut(20));
-        dateTimePanel.add(new JLabel("Time:"));
-        dateTimePanel.add(timeSlotCombo);
+        GridBagConstraints dtGbc = new GridBagConstraints();
+        dtGbc.insets = new Insets(5, 5, 5, 5);
+        dtGbc.anchor = GridBagConstraints.WEST;
+
+        // Day field
+        dtGbc.gridx = 0;
+        dtGbc.gridy = 0;
+        dateTimePanel.add(new JLabel("Day:"), dtGbc);
+        
+        dtGbc.gridx = 1;
+        dayCombo = new JComboBox<>(generateAvailableDays());
+        dateTimePanel.add(dayCombo, dtGbc);
+
+        // Time field
+        dtGbc.gridx = 0;
+        dtGbc.gridy = 1;
+        dateTimePanel.add(new JLabel("Time:"), dtGbc);
+        
+        dtGbc.gridx = 1;
+        timeSlotCombo = new JComboBox<>(generateTimeSlots());
+        dateTimePanel.add(timeSlotCombo, dtGbc);
 
         gbc.gridy = 1;
         panel.add(dateTimePanel, gbc);
+        dateTimePanel.setVisible(false); // Initially hidden
 
-        // Address fields with consistent formatting
-        gbc.gridwidth = 1;
-        gbc.gridy = 2;
-        
+        // Address panel
+        addressPanel = new JPanel(new GridBagLayout());
+        GridBagConstraints addrGbc = new GridBagConstraints();
+        addrGbc.insets = new Insets(5, 5, 5, 5);
+        addrGbc.anchor = GridBagConstraints.WEST;
+        addrGbc.fill = GridBagConstraints.HORIZONTAL;
+
         // Street
-        gbc.gridx = 0;
-        JLabel streetLabel = new JLabel("Street:");
-        streetLabel.setPreferredSize(new Dimension(100, streetLabel.getPreferredSize().height));
-        panel.add(streetLabel, gbc);
-        gbc.gridx = 1;
-        streetField = new JTextField(20);
-        panel.add(streetField, gbc);
+        addrGbc.gridx = 0;
+        addrGbc.gridy = 0;
+        addressPanel.add(new JLabel("Street:"), addrGbc);
+        addrGbc.gridx = 1;
+        addressPanel.add(streetField, addrGbc);
 
         // City
-        gbc.gridy = 3;
-        gbc.gridx = 0;
-        JLabel cityLabel = new JLabel("City:");
-        cityLabel.setPreferredSize(new Dimension(100, cityLabel.getPreferredSize().height));
-        panel.add(cityLabel, gbc);
-        gbc.gridx = 1;
-        cityField = new JTextField(20);
-        panel.add(cityField, gbc);
+        addrGbc.gridx = 0;
+        addrGbc.gridy = 1;
+        addressPanel.add(new JLabel("City:"), addrGbc);
+        addrGbc.gridx = 1;
+        addressPanel.add(cityField, addrGbc);
 
         // ZIP
-        gbc.gridy = 4;
-        gbc.gridx = 0;
-        JLabel zipLabel = new JLabel("ZIP:");
-        zipLabel.setPreferredSize(new Dimension(100, zipLabel.getPreferredSize().height));
-        panel.add(zipLabel, gbc);
-        gbc.gridx = 1;
-        zipField = new JTextField(20);
-        panel.add(zipField, gbc);
+        addrGbc.gridx = 0;
+        addrGbc.gridy = 2;
+        addressPanel.add(new JLabel("ZIP:"), addrGbc);
+        addrGbc.gridx = 1;
+        addressPanel.add(zipField, addrGbc);
 
-        return panel;
-    }
+        gbc.gridy = 2;
+        panel.add(addressPanel, gbc);
 
-    private void updateDeliveryOptions(boolean isPickup) {
-        // Find the delivery panel (it's the second panel in the main panel)
-        JPanel mainPanel = (JPanel) frame.getContentPane().getComponent(0);
-        JPanel deliveryPanel = (JPanel) mainPanel.getComponent(1);
-        
-        // Update visibility of date/time panel
-        for (Component comp : deliveryPanel.getComponents()) {
-            if (comp instanceof JPanel && "dateTimePanel".equals(comp.getName())) {
-                comp.setVisible(isPickup);
-            }
-        }
-        
-        // Update cash payment availability
-        for (java.util.Enumeration<AbstractButton> buttons = paymentGroup.getElements(); buttons.hasMoreElements();) {
-            JRadioButton button = (JRadioButton) buttons.nextElement();
-            if (button.getText().equals("Cash")) {
-                button.setEnabled(isPickup);
-                if (!isPickup && button.isSelected()) {
-                    paymentGroup.clearSelection();
+        // Add listeners for delivery type selection
+        pickupButton.addActionListener(e -> {
+            dateTimePanel.setVisible(true);
+            addressPanel.setVisible(true);  // Show address fields for pickup too
+            
+            // Enable cash payment for pickup
+            for (java.util.Enumeration<AbstractButton> buttons = paymentGroup.getElements(); buttons.hasMoreElements();) {
+                JRadioButton button = (JRadioButton) buttons.nextElement();
+                if (button.getText().equals("Cash")) {
+                    button.setEnabled(true);
                 }
             }
-        }
-        
-        frame.revalidate();
-        frame.repaint();
-    }
-
-    private JPanel createPaymentPanel() {
-        JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBorder(BorderFactory.createTitledBorder("Payment Method"));
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 5, 5, 5);
-        gbc.anchor = GridBagConstraints.WEST;
-
-        // Payment methods
-        paymentGroup = new ButtonGroup();
-        String[] methods = {"PayPal", "Credit Card", "Invoice", "Cash"};
-        
-        // Payment method radio buttons
-        for (String method : methods) {
-            JRadioButton button = new JRadioButton(method);
-            button.addActionListener(e -> showPaymentDetails(method));
-            paymentGroup.add(button);
-            gbc.gridx = 0;
-            gbc.gridy = panel.getComponentCount();
-            panel.add(button, gbc);
-        }
-
-        // PayPal panel
-        JPanel paypalPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        paypalPanel.setName("paypalPanel");
-        JButton connectPayPalButton = UIManager.createStyledButton("Connect PayPal");
-        paypalPanel.add(connectPayPalButton);
-        paypalPanel.setVisible(false);
-
-        // Credit card panel
-        JPanel cardPanel = new JPanel(new GridBagLayout());
-        cardPanel.setName("cardPanel");
-        cardPanel.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
-        
-        creditCardNumber = new JFormattedTextField(createCardNumberFormatter());
-        creditCardNumber.setColumns(19);
-        cvcField = new JTextField(3);
-        expiryMonth = new JComboBox<>(new String[]{"01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"});
-        expiryYear = new JComboBox<>(generateYearRange());
-
-        GridBagConstraints cardGbc = new GridBagConstraints();
-        cardGbc.insets = new Insets(2, 2, 2, 2);
-        cardGbc.anchor = GridBagConstraints.WEST;
-
-        cardGbc.gridx = 0; cardGbc.gridy = 0;
-        cardPanel.add(new JLabel("Card Number:"), cardGbc);
-        cardGbc.gridx = 1;
-        cardPanel.add(creditCardNumber, cardGbc);
-
-        cardGbc.gridx = 0; cardGbc.gridy = 1;
-        cardPanel.add(new JLabel("CVC:"), cardGbc);
-        cardGbc.gridx = 1;
-        cardPanel.add(cvcField, cardGbc);
-
-        cardGbc.gridx = 0; cardGbc.gridy = 2;
-        cardPanel.add(new JLabel("Expiry:"), cardGbc);
-        JPanel expiryPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
-        expiryPanel.add(expiryMonth);
-        expiryPanel.add(new JLabel("/"));
-        expiryPanel.add(expiryYear);
-        cardGbc.gridx = 1;
-        cardPanel.add(expiryPanel, cardGbc);
-        cardPanel.setVisible(false);
-
-        // Invoice panel
-        JPanel invoicePanel = new JPanel(new GridBagLayout());
-        invoicePanel.setName("invoicePanel");
-        invoicePanel.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 0));
-        
-        alternateEmailCheck = new JCheckBox("Send invoice to different email");
-        alternateEmailField = new JTextField(20);
-        alternateEmailField.setVisible(false);
-        
-        alternateEmailCheck.addActionListener(e -> {
-            alternateEmailField.setVisible(alternateEmailCheck.isSelected());
-            invoicePanel.revalidate();
-            invoicePanel.repaint();
+            
+            panel.revalidate();
+            panel.repaint();
         });
-        
-        invoicePanel.add(alternateEmailCheck);
-        invoicePanel.add(alternateEmailField);
-        invoicePanel.setVisible(false);
 
-        // Add all panels
-        gbc.gridy++;
-        gbc.gridwidth = 2;
-        panel.add(paypalPanel, gbc);
-        gbc.gridy++;
-        panel.add(cardPanel, gbc);
-        gbc.gridy++;
-        panel.add(invoicePanel, gbc);
+        deliveryButton.addActionListener(e -> {
+            dateTimePanel.setVisible(false);
+            addressPanel.setVisible(true);
+            
+            // Disable cash payment for delivery and unselect if it was selected
+            for (java.util.Enumeration<AbstractButton> buttons = paymentGroup.getElements(); buttons.hasMoreElements();) {
+                JRadioButton button = (JRadioButton) buttons.nextElement();
+                if (button.getText().equals("Cash")) {
+                    button.setEnabled(false);
+                    if (button.isSelected()) {
+                        paymentGroup.clearSelection();
+                    }
+                }
+            }
+            
+            panel.revalidate();
+            panel.repaint();
+        });
+
+        // Trigger the delivery button action listener initially to set up correct state
+        deliveryButton.doClick();
 
         return panel;
     }
@@ -351,15 +313,6 @@ public class CheckoutView {
             }
         }
         
-        // Enable cash only for pickup
-        boolean isPickup = ((JRadioButton)deliveryGroup.getElements().nextElement()).isSelected();
-        for (java.util.Enumeration<AbstractButton> buttons = paymentGroup.getElements(); buttons.hasMoreElements();) {
-            JRadioButton button = (JRadioButton) buttons.nextElement();
-            if (button.getText().equals("Cash")) {
-                button.setEnabled(isPickup);
-            }
-        }
-        
         frame.revalidate();
         frame.repaint();
     }
@@ -376,30 +329,44 @@ public class CheckoutView {
     }
 
     private void setupCreditCardPanel(JPanel panel) {
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+        panel.setLayout(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.anchor = GridBagConstraints.WEST;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
         // Card number
         gbc.gridx = 0; gbc.gridy = 0;
         panel.add(new JLabel("Card Number:"), gbc);
+        
         gbc.gridx = 1;
+        creditCardNumber = new JFormattedTextField(createCardNumberFormatter());
+        creditCardNumber.setColumns(16);
         panel.add(creditCardNumber, gbc);
 
         // CVC
         gbc.gridx = 0; gbc.gridy = 1;
         panel.add(new JLabel("CVC:"), gbc);
+        
         gbc.gridx = 1;
+        cvcField = new JTextField(3);
         panel.add(cvcField, gbc);
 
-        // Centered expiry date
+        // Expiry date
         gbc.gridx = 0; gbc.gridy = 2;
-        gbc.gridwidth = 2;
-        JPanel expiryPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        expiryPanel.add(new JLabel("Expiry:"));
+        panel.add(new JLabel("Expiry Date:"), gbc);
+        
+        JPanel expiryPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        expiryMonth = new JComboBox<>(new String[]{"01", "02", "03", "04", "05", "06", 
+                                                  "07", "08", "09", "10", "11", "12"});
+        expiryYear = new JComboBox<>(generateYearRange());
+        
         expiryPanel.add(expiryMonth);
         expiryPanel.add(new JLabel("/"));
         expiryPanel.add(expiryYear);
+        
+        gbc.gridx = 1;
         panel.add(expiryPanel, gbc);
     }
 
@@ -426,16 +393,17 @@ public class CheckoutView {
             return false;
         }
 
+        // Always validate address fields regardless of delivery type
+        if (streetField.getText().trim().isEmpty() ||
+            cityField.getText().trim().isEmpty() ||
+            zipField.getText().trim().isEmpty()) {
+            JOptionPane.showMessageDialog(frame, "Please fill in all address fields");
+            return false;
+        }
+
         boolean isPickup = ((JRadioButton)deliveryGroup.getElements().nextElement()).isSelected();
         if (isPickup && timeSlotCombo.getSelectedItem() == null) {
             JOptionPane.showMessageDialog(frame, "Please select a pickup time");
-            return false;
-        }
-        
-        if (!isPickup && (streetField.getText().trim().isEmpty() ||
-            cityField.getText().trim().isEmpty() ||
-            zipField.getText().trim().isEmpty())) {
-            JOptionPane.showMessageDialog(frame, "Please fill in all address fields");
             return false;
         }
         
@@ -579,6 +547,89 @@ public class CheckoutView {
         return IntStream.rangeClosed(currentYear, currentYear + 10)
             .mapToObj(String::valueOf)
             .toArray(String[]::new);
+    }
+
+    private JPanel findDateTimePanel() {
+        // Search through the components to find the dateTimePanel by name
+        for (Component comp : frame.getContentPane().getComponents()) {
+            if (comp instanceof JPanel) {
+                for (Component inner : ((JPanel) comp).getComponents()) {
+                    if (inner instanceof JPanel && "dateTimePanel".equals(inner.getName())) {
+                        return (JPanel) inner;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private JPanel createPaymentPanel() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(BorderFactory.createTitledBorder("Payment Method"));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.anchor = GridBagConstraints.WEST;
+
+        // Payment methods
+        paymentGroup = new ButtonGroup();
+        String[] methods = {"PayPal", "Credit Card", "Invoice", "Cash"};
+        
+        int gridy = 0;
+        for (String method : methods) {
+            JRadioButton button = new JRadioButton(method);
+            // Initially disable cash payment since delivery is default
+            if (method.equals("Cash")) {
+                button.setEnabled(false);
+            }
+            button.addActionListener(e -> showPaymentDetails(method));
+            paymentGroup.add(button);
+            gbc.gridx = 0;
+            gbc.gridy = gridy++;
+            panel.add(button, gbc);
+        }
+
+        // Payment details panels
+        paypalPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        paypalPanel.setName("paypalPanel");
+        JButton connectPayPalButton = UIManager.createStyledButton("Connect PayPal");
+        paypalPanel.add(connectPayPalButton);
+        paypalPanel.setVisible(false);
+
+        creditCardPanel = new JPanel(new GridBagLayout());
+        creditCardPanel.setName("cardPanel");
+        setupCreditCardPanel(creditCardPanel);
+        creditCardPanel.setVisible(false);
+
+        invoicePanel = new JPanel(new GridBagLayout());
+        invoicePanel.setName("invoicePanel");
+        setupInvoicePanel(invoicePanel);
+        invoicePanel.setVisible(false);
+
+        // Add all panels
+        gbc.gridy = gridy++;
+        gbc.gridwidth = 2;
+        panel.add(paypalPanel, gbc);
+        gbc.gridy = gridy++;
+        panel.add(creditCardPanel, gbc);
+        gbc.gridy = gridy;
+        panel.add(invoicePanel, gbc);
+
+        return panel;
+    }
+
+    private void setupInvoicePanel(JPanel panel) {
+        alternateEmailCheck = new JCheckBox("Send invoice to different email");
+        alternateEmailField = new JTextField(20);
+        alternateEmailField.setVisible(false);
+        
+        alternateEmailCheck.addActionListener(e -> {
+            alternateEmailField.setVisible(alternateEmailCheck.isSelected());
+            panel.revalidate();
+            panel.repaint();
+        });
+        
+        panel.add(alternateEmailCheck);
+        panel.add(alternateEmailField);
     }
 
     public void display() {
