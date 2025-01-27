@@ -2,7 +2,7 @@ package view;
 
 import util.UIManager;
 import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
+import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.sql.*;
@@ -13,6 +13,11 @@ import util.Database;
 import model.User;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import javax.swing.table.TableCellRenderer;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.DefaultCellEditor;
+import java.awt.Component;
+import java.awt.Font;
 
 public class EmployeeView {
 
@@ -721,6 +726,83 @@ public class EmployeeView {
                 "Error initializing stock: " + e.getMessage(),
                 "Error",
                 JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    // Inner class for button rendering
+    private static class ButtonRenderer extends JButton implements TableCellRenderer {
+        public ButtonRenderer() {
+            setOpaque(true);
+            setFont(new Font("SF Pro Text", Font.PLAIN, 12));
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                boolean isSelected, boolean hasFocus, int row, int column) {
+            setText(value instanceof JButton ? ((JButton)value).getText() : "Aktualisieren");
+            return this;
+        }
+    }
+
+    // Inner class for button editing
+    private class ButtonEditor extends DefaultCellEditor {
+        protected JButton button;
+        private String label;
+        private boolean isPushed;
+        private int currentRow;
+        private JTable currentTable;
+
+        public ButtonEditor(JCheckBox checkBox) {
+            super(checkBox);
+            button = new JButton();
+            button.setOpaque(true);
+            button.setFont(new Font("SF Pro Text", Font.PLAIN, 12));
+            button.addActionListener(e -> fireEditingStopped());
+        }
+
+        @Override
+        public Component getTableCellEditorComponent(JTable table, Object value,
+                boolean isSelected, int row, int column) {
+            currentTable = table;
+            currentRow = row;
+            label = "Aktualisieren";
+            button.setText(label);
+            isPushed = true;
+            return button;
+        }
+
+        @Override
+        public Object getCellEditorValue() {
+            if (isPushed) {
+                // Get the cake_id from the table model
+                DefaultTableModel model = (DefaultTableModel) currentTable.getModel();
+                String productName = (String) model.getValueAt(currentRow, 0);
+                
+                // Find the cake_id using the product name
+                try (Connection conn = Database.getConnection()) {
+                    String query = "SELECT cake_id FROM cakes WHERE name = ?";
+                    try (PreparedStatement pstmt = conn.prepareStatement(query)) {
+                        pstmt.setString(1, productName);
+                        try (ResultSet rs = pstmt.executeQuery()) {
+                            if (rs.next()) {
+                                int cakeId = rs.getInt("cake_id");
+                                // Show the update dialog using EmployeeView's method
+                                EmployeeView.this.showStockUpdateDialog(cakeId);
+                            }
+                        }
+                    }
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                }
+            }
+            isPushed = false;
+            return label;
+        }
+
+        @Override
+        public boolean stopCellEditing() {
+            isPushed = false;
+            return super.stopCellEditing();
         }
     }
 }
