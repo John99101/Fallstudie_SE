@@ -18,6 +18,9 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.DefaultCellEditor;
 import java.awt.Component;
 import java.awt.Font;
+import java.awt.Insets;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
 
 public class EmployeeView {
 
@@ -30,8 +33,16 @@ public class EmployeeView {
     private JPanel productsPanel;
     private JPanel ordersPanel;
 
+    private static final String[] DEMAND_STATUSES = {
+        "Normale Nachfrage",
+        "Moderate Nachfrage",
+        "Hohe Nachfrage",
+        "Geringe Nachfrage"
+    };
+
     public EmployeeView(User user) {
         this.currentUser = user;
+        ensureDemandStatusColumn();
         initialize();
         initializeStock();
         loadOrders((DefaultTableModel) ordersTable.getModel());
@@ -528,7 +539,6 @@ public class EmployeeView {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBackground(UIManager.BG_COLOR);
         
-        // Create table model for stock
         String[] columnNames = {
             "Produkt",
             "Verfügbar",
@@ -542,36 +552,35 @@ public class EmployeeView {
         DefaultTableModel stockModel = new DefaultTableModel(columnNames, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return column == 6; // Only action column is editable
-            }
-            
-            @Override
-            public Class<?> getColumnClass(int column) {
-                if (column == 1) return Boolean.class;
-                return super.getColumnClass(column);
+                return column == 5; // Only allow editing the status column
             }
         };
         
         JTable stockTable = new JTable(stockModel);
-        stockTable.setBackground(UIManager.BG_COLOR);
-        stockTable.setForeground(UIManager.FG_COLOR);
+        stockTable.setRowHeight(35);
         
-        // Set up custom renderers on the JTable instead of the model
-        stockTable.getColumnModel().getColumn(6).setCellRenderer(new ButtonRenderer());
-        stockTable.getColumnModel().getColumn(6).setCellEditor(new ButtonEditor(new JCheckBox()));
+        // Set up the combo box renderer and editor for the status column
+        stockTable.getColumnModel().getColumn(5).setCellRenderer(new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value,
+                    boolean isSelected, boolean hasFocus, int row, int column) {
+                if (value instanceof JComboBox) {
+                    return (JComboBox<?>) value;
+                }
+                return super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            }
+        });
         
         // Add refresh button
-        JButton refreshButton = UIManager.createStyledButton("Aktualisieren");
+        JButton refreshButton = new JButton("Aktualisieren");
         refreshButton.addActionListener(e -> loadStockData(stockModel));
         
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        topPanel.setBackground(UIManager.BG_COLOR);
         topPanel.add(refreshButton);
         
         panel.add(topPanel, BorderLayout.NORTH);
         panel.add(new JScrollPane(stockTable), BorderLayout.CENTER);
         
-        // Initial load
         loadStockData(stockModel);
         
         return panel;
@@ -585,14 +594,15 @@ public class EmployeeView {
                     c.name, 
                     c.available, 
                     c.stock,
-                    COUNT(CASE WHEN o.created_at >= CURRENT_DATE THEN 1 END) as today_sales,
+                    COALESCE(c.demand_status, 'Normale Nachfrage') as demand_status,
+                    COUNT(CASE WHEN o.created_at >= CURRENT_DATE THEN oi.quantity END) as today_sales,
                     COUNT(oi.order_id) as total_sales,
                     COALESCE(SUM(oi.quantity), 0) as total_quantity_sold,
                     c.cake_id
                 FROM cakes c
                 LEFT JOIN order_items oi ON c.cake_id = oi.cake_id
                 LEFT JOIN orders o ON oi.order_id = o.order_id
-                GROUP BY c.cake_id, c.name, c.available, c.stock
+                GROUP BY c.cake_id, c.name, c.available, c.stock, c.demand_status
                 ORDER BY c.name
                 """;
                 
@@ -600,20 +610,21 @@ public class EmployeeView {
                  ResultSet rs = stmt.executeQuery(query)) {
                 
                 while (rs.next()) {
-                    String status = determineStatus(
-                        rs.getInt("today_sales"),
-                        rs.getBoolean("available")
-                    );
-                    
-                    JButton updateButton = new JButton("Aktualisieren");
-                    updateButton.setFont(new Font("SF Pro Text", Font.PLAIN, 12));
-                    final int cakeId = rs.getInt("cake_id");
-                    updateButton.addActionListener(e -> showStockUpdateDialog(cakeId));
-                    
-                    // Calculate remaining stock (100 - sold items)
-                    int totalStock = 100;
+                    int currentStock = rs.getInt("stock");
                     int soldQuantity = rs.getInt("total_quantity_sold");
-                    int remainingStock = totalStock - soldQuantity;
+                    int remainingStock = currentStock - soldQuantity;
+                    
+                    // Create combo box for status
+                    JComboBox<String> statusCombo = new JComboBox<>(new String[]{
+                        "Normale Nachfrage",
+                        "Moderate Nachfrage",
+                        "Hohe Nachfrage",
+                        "Geringe Nachfrage"
+                    });
+                    statusCombo.setSelectedItem(rs.getString("demand_status"));
+                    
+                    final String productName = rs.getString("name");
+                    statusCombo.addActionListener(e -> updateDemandStatus(productName, (String)statusCombo.getSelectedItem()));
                     
                     model.addRow(new Object[]{
                         rs.getString("name"),
@@ -621,8 +632,8 @@ public class EmployeeView {
                         rs.getInt("today_sales"),
                         rs.getInt("total_sales"),
                         remainingStock + " verfügbar",
-                        status,
-                        updateButton
+                        statusCombo,
+                        "Aktualisieren"
                     });
                 }
             }
@@ -635,80 +646,18 @@ public class EmployeeView {
         }
     }
 
-    private String determineStatus(int todaySales, boolean available) {
-        if (!available) return "Nicht verfügbar";
-        if (todaySales > 10) return "Hohe Nachfrage";
-        if (todaySales > 5) return "Moderate Nachfrage";
-        return "Normale Nachfrage";
-    }
-
-    private void showStockUpdateDialog(int cakeId) {
-        JDialog dialog = new JDialog(frame, "Lagerbestand aktualisieren", true);
-        dialog.setLayout(new BorderLayout(10, 10));
-        
-        JPanel inputPanel = new JPanel(new GridLayout(3, 2, 5, 5));
-        JCheckBox availableBox = new JCheckBox("Verfügbar");
-        JSpinner stockSpinner = new JSpinner(new SpinnerNumberModel(0, 0, 999, 1));
-        
-        inputPanel.add(new JLabel("Status:"));
-        inputPanel.add(availableBox);
-        inputPanel.add(new JLabel("Lagerbestand:"));
-        inputPanel.add(stockSpinner);
-        
-        // Get current values
+    private void updateDemandStatus(String productName, String newStatus) {
         try (Connection conn = Database.getConnection()) {
-            String query = "SELECT available, stock FROM cakes WHERE cake_id = ?";
+            String query = "UPDATE cakes SET demand_status = ? WHERE name = ?";
             try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-                pstmt.setInt(1, cakeId);
-                try (ResultSet rs = pstmt.executeQuery()) {
-                    if (rs.next()) {
-                        availableBox.setSelected(rs.getBoolean("available"));
-                        stockSpinner.setValue(rs.getInt("stock"));
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton saveButton = UIManager.createStyledButton("Speichern");
-        JButton cancelButton = UIManager.createStyledButton("Abbrechen");
-        
-        saveButton.addActionListener(e -> {
-            updateProductStock(cakeId, availableBox.isSelected(), (Integer)stockSpinner.getValue());
-            dialog.dispose();
-            loadStockData((DefaultTableModel)((JTable)((JScrollPane)((JPanel)frame
-                .getContentPane().getComponent(0)).getComponent(1))
-                .getViewport().getView()).getModel());
-        });
-        
-        cancelButton.addActionListener(e -> dialog.dispose());
-        
-        buttonPanel.add(saveButton);
-        buttonPanel.add(cancelButton);
-        
-        dialog.add(inputPanel, BorderLayout.CENTER);
-        dialog.add(buttonPanel, BorderLayout.SOUTH);
-        
-        dialog.pack();
-        dialog.setLocationRelativeTo(frame);
-        dialog.setVisible(true);
-    }
-
-    private void updateProductStock(int cakeId, boolean available, int stock) {
-        try (Connection conn = Database.getConnection()) {
-            String query = "UPDATE cakes SET available = ?, stock = ? WHERE cake_id = ?";
-            try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-                pstmt.setBoolean(1, available);
-                pstmt.setInt(2, stock);
-                pstmt.setInt(3, cakeId);
+                pstmt.setString(1, newStatus);
+                pstmt.setString(2, productName);
                 pstmt.executeUpdate();
             }
         } catch (SQLException e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(frame,
-                "Error updating product stock: " + e.getMessage(),
+                "Error updating demand status: " + e.getMessage(),
                 "Error",
                 JOptionPane.ERROR_MESSAGE);
         }
@@ -729,80 +678,21 @@ public class EmployeeView {
         }
     }
 
-    // Inner class for button rendering
-    private static class ButtonRenderer extends JButton implements TableCellRenderer {
-        public ButtonRenderer() {
-            setOpaque(true);
-            setFont(new Font("SF Pro Text", Font.PLAIN, 12));
-        }
-
-        @Override
-        public Component getTableCellRendererComponent(JTable table, Object value,
-                boolean isSelected, boolean hasFocus, int row, int column) {
-            setText(value instanceof JButton ? ((JButton)value).getText() : "Aktualisieren");
-            return this;
-        }
-    }
-
-    // Inner class for button editing
-    private class ButtonEditor extends DefaultCellEditor {
-        protected JButton button;
-        private String label;
-        private boolean isPushed;
-        private int currentRow;
-        private JTable currentTable;
-
-        public ButtonEditor(JCheckBox checkBox) {
-            super(checkBox);
-            button = new JButton();
-            button.setOpaque(true);
-            button.setFont(new Font("SF Pro Text", Font.PLAIN, 12));
-            button.addActionListener(e -> fireEditingStopped());
-        }
-
-        @Override
-        public Component getTableCellEditorComponent(JTable table, Object value,
-                boolean isSelected, int row, int column) {
-            currentTable = table;
-            currentRow = row;
-            label = "Aktualisieren";
-            button.setText(label);
-            isPushed = true;
-            return button;
-        }
-
-        @Override
-        public Object getCellEditorValue() {
-            if (isPushed) {
-                // Get the cake_id from the table model
-                DefaultTableModel model = (DefaultTableModel) currentTable.getModel();
-                String productName = (String) model.getValueAt(currentRow, 0);
-                
-                // Find the cake_id using the product name
-                try (Connection conn = Database.getConnection()) {
-                    String query = "SELECT cake_id FROM cakes WHERE name = ?";
-                    try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-                        pstmt.setString(1, productName);
-                        try (ResultSet rs = pstmt.executeQuery()) {
-                            if (rs.next()) {
-                                int cakeId = rs.getInt("cake_id");
-                                // Show the update dialog using EmployeeView's method
-                                EmployeeView.this.showStockUpdateDialog(cakeId);
-                            }
-                        }
-                    }
-                } catch (SQLException ex) {
-                    ex.printStackTrace();
+    private void ensureDemandStatusColumn() {
+        try (Connection conn = Database.getConnection()) {
+            // Check if column exists
+            DatabaseMetaData meta = conn.getMetaData();
+            ResultSet rs = meta.getColumns(null, null, "cakes", "demand_status");
+            
+            if (!rs.next()) {
+                // Column doesn't exist, create it
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.execute("ALTER TABLE cakes ADD COLUMN demand_status VARCHAR(50) DEFAULT 'Normale Nachfrage'");
+                    stmt.execute("UPDATE cakes SET demand_status = 'Normale Nachfrage' WHERE demand_status IS NULL");
                 }
             }
-            isPushed = false;
-            return label;
-        }
-
-        @Override
-        public boolean stopCellEditing() {
-            isPushed = false;
-            return super.stopCellEditing();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
     }
 }

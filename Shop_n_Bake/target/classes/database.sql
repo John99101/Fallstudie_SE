@@ -23,14 +23,15 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create cakes table with stock
+-- Create cakes table with stock and demand_status
 CREATE TABLE cakes (
     cake_id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(100) NOT NULL,
     description TEXT,
     price DECIMAL(10,2) NOT NULL,
     available BOOLEAN DEFAULT true,
-    stock INT DEFAULT 0,  -- Added stock field
+    stock INT DEFAULT 100,
+    demand_status VARCHAR(50) DEFAULT 'Normale Nachfrage',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -69,16 +70,16 @@ INSERT INTO users (email, password, role, name, is_company) VALUES
 ('admin@shop.com', 'admin', 'employee', 'Admin User', false),
 ('test@test.com', 'test', 'customer', 'Test Customer', false);
 
--- Insert sample cakes with stock
-INSERT INTO cakes (name, description, price, available, stock) VALUES
-('Chocolate Cake', 'Rich chocolate cake with chocolate frosting', 24.99, true, 100),
-('Vanilla Cake', 'Classic vanilla cake with vanilla buttercream', 19.99, true, 100),
-('Strawberry Cheesecake', 'Fresh strawberry cheesecake with graham cracker crust', 29.99, true, 100),
-('Carrot Cake', 'Moist carrot cake with cream cheese frosting', 22.99, true, 100),
-('Black Forest Cake', 'Classic German chocolate cake with cherries', 27.99, true, 100),
-('Red Velvet Cake', 'Red velvet cake with cream cheese frosting', 25.99, true, 100),
-('Lemon Pound Cake', 'Tangy lemon cake with lemon glaze', 18.99, true, 100),
-('Tiramisu', 'Italian coffee-flavored dessert', 26.99, true, 100);
+-- Insert sample cakes with stock and demand status
+INSERT INTO cakes (name, description, price, available, stock, demand_status) VALUES
+('Chocolate Cake', 'Rich chocolate cake with chocolate frosting', 24.99, true, 100, 'Normale Nachfrage'),
+('Vanilla Cake', 'Classic vanilla cake with vanilla buttercream', 19.99, true, 100, 'Normale Nachfrage'),
+('Strawberry Cheesecake', 'Fresh strawberry cheesecake with graham cracker crust', 29.99, true, 100, 'Normale Nachfrage'),
+('Carrot Cake', 'Moist carrot cake with cream cheese frosting', 22.99, true, 100, 'Normale Nachfrage'),
+('Black Forest Cake', 'Classic German chocolate cake with cherries', 27.99, true, 100, 'Normale Nachfrage'),
+('Red Velvet Cake', 'Red velvet cake with cream cheese frosting', 25.99, true, 100, 'Normale Nachfrage'),
+('Lemon Pound Cake', 'Tangy lemon cake with lemon glaze', 18.99, true, 100, 'Normale Nachfrage'),
+('Tiramisu', 'Italian coffee-flavored dessert', 26.99, true, 100, 'Normale Nachfrage');
 
 -- Insert sample orders with delivery details
 INSERT INTO orders (user_id, total, status, delivery_type, payment_method, delivery_time, street, city, zip) VALUES
@@ -121,3 +122,6 @@ FLUSH PRIVILEGES;
 
 -- Update the cakes table initial data to set stock to 100
 UPDATE cakes SET stock = 100 WHERE stock IS NULL OR stock = 0;
+
+-- Update existing records with default status
+UPDATE cakes SET demand_status = 'Normale Nachfrage' WHERE demand_status IS NULL;
