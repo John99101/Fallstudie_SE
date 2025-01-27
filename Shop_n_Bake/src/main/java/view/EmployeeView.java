@@ -552,22 +552,38 @@ public class EmployeeView {
         DefaultTableModel stockModel = new DefaultTableModel(columnNames, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
-                return column == 5; // Only allow editing the status column
+                return column == 5; // Only status column is editable
+            }
+            
+            @Override
+            public Class<?> getColumnClass(int column) {
+                if (column == 5) return String.class;
+                return super.getColumnClass(column);
             }
         };
         
         JTable stockTable = new JTable(stockModel);
         stockTable.setRowHeight(35);
         
-        // Set up the combo box renderer and editor for the status column
-        stockTable.getColumnModel().getColumn(5).setCellRenderer(new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value,
-                    boolean isSelected, boolean hasFocus, int row, int column) {
-                if (value instanceof JComboBox) {
-                    return (JComboBox<?>) value;
-                }
-                return super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+        // Create a ComboBox for the status column
+        JComboBox<String> statusCombo = new JComboBox<>(new String[]{
+            "Normale Nachfrage",
+            "Moderate Nachfrage",
+            "Hohe Nachfrage",
+            "Geringe Nachfrage"
+        });
+        
+        // Set the combo box as the editor for the status column
+        TableColumn statusColumn = stockTable.getColumnModel().getColumn(5);
+        statusColumn.setCellEditor(new DefaultCellEditor(statusCombo));
+        
+        // Add listener for status changes
+        statusCombo.addActionListener(e -> {
+            int row = stockTable.getSelectedRow();
+            if (row != -1) {
+                String productName = (String) stockModel.getValueAt(row, 0);
+                String newStatus = (String) statusCombo.getSelectedItem();
+                updateDemandStatus(productName, newStatus);
             }
         });
         
@@ -614,25 +630,13 @@ public class EmployeeView {
                     int soldQuantity = rs.getInt("total_quantity_sold");
                     int remainingStock = currentStock - soldQuantity;
                     
-                    // Create combo box for status
-                    JComboBox<String> statusCombo = new JComboBox<>(new String[]{
-                        "Normale Nachfrage",
-                        "Moderate Nachfrage",
-                        "Hohe Nachfrage",
-                        "Geringe Nachfrage"
-                    });
-                    statusCombo.setSelectedItem(rs.getString("demand_status"));
-                    
-                    final String productName = rs.getString("name");
-                    statusCombo.addActionListener(e -> updateDemandStatus(productName, (String)statusCombo.getSelectedItem()));
-                    
                     model.addRow(new Object[]{
                         rs.getString("name"),
                         rs.getBoolean("available"),
                         rs.getInt("today_sales"),
                         rs.getInt("total_sales"),
                         remainingStock + " verfügbar",
-                        statusCombo,
+                        rs.getString("demand_status"),  // Now just a String, not a JComboBox
                         "Aktualisieren"
                     });
                 }
