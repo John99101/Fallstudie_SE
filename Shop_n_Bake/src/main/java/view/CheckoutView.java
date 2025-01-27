@@ -320,8 +320,9 @@ public class CheckoutView {
     private MaskFormatter createCardNumberFormatter() {
         MaskFormatter formatter = null;
         try {
-            formatter = new MaskFormatter("#### #### #### ####");
+            formatter = new MaskFormatter("################");
             formatter.setPlaceholderCharacter('_');
+            formatter.setValidCharacters("0123456789");
         } catch (ParseException e) {
             e.printStackTrace();
         }
@@ -429,11 +430,15 @@ public class CheckoutView {
     }
 
     private boolean validateCreditCard() {
-        if (creditCardNumber.getText().length() != 16) {
+        // Remove any spaces or non-digit characters from the card number
+        String cardNumber = creditCardNumber.getText().replaceAll("\\D", "");
+        
+        if (cardNumber.length() != 16) {
             JOptionPane.showMessageDialog(frame, "Invalid card number");
             return false;
         }
-        if (cvcField.getText().length() != 3) {
+        
+        if (cvcField.getText().replaceAll("\\D", "").length() != 3) {
             JOptionPane.showMessageDialog(frame, "Invalid CVC");
             return false;
         }
@@ -473,9 +478,25 @@ public class CheckoutView {
                                     "pickup" : "delivery";
                 String paymentMethod = getSelectedPaymentMethod();
                 
+                // Get selected date and time for delivery/pickup
+                LocalDate selectedDate = (LocalDate) dayCombo.getSelectedItem();
+                String selectedTime = (String) timeSlotCombo.getSelectedItem();
+                LocalDateTime deliveryDateTime = null;
+                
+                if (selectedDate != null && selectedTime != null) {
+                    String[] timeParts = selectedTime.split(":");
+                    deliveryDateTime = selectedDate.atTime(
+                        Integer.parseInt(timeParts[0]),
+                        Integer.parseInt(timeParts[1])
+                    );
+                }
+                
                 // Create order with additional fields
-                String orderQuery = "INSERT INTO orders (user_id, total, status, delivery_type, payment_method) " +
-                                  "VALUES (?, ?, ?, ?, ?)";
+                String orderQuery = """
+                    INSERT INTO orders (user_id, total, status, delivery_type, 
+                                     payment_method, delivery_time, street, city, zip)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """;
                 int orderId;
                 
                 try (PreparedStatement pstmt = conn.prepareStatement(orderQuery, Statement.RETURN_GENERATED_KEYS)) {
@@ -484,6 +505,11 @@ public class CheckoutView {
                     pstmt.setString(3, "pending");
                     pstmt.setString(4, deliveryType);
                     pstmt.setString(5, paymentMethod);
+                    pstmt.setTimestamp(6, deliveryDateTime != null ? 
+                        Timestamp.valueOf(deliveryDateTime) : null);
+                    pstmt.setString(7, streetField.getText());
+                    pstmt.setString(8, cityField.getText());
+                    pstmt.setString(9, zipField.getText());
                     pstmt.executeUpdate();
                     
                     try (ResultSet rs = pstmt.getGeneratedKeys()) {
@@ -495,15 +521,25 @@ public class CheckoutView {
                     }
                 }
 
-                // Insert order items with price
+                // Insert order items and update stock
                 String itemQuery = "INSERT INTO order_items (order_id, cake_id, quantity, price) VALUES (?, ?, ?, ?)";
-                try (PreparedStatement pstmt = conn.prepareStatement(itemQuery)) {
+                String updateStockQuery = "UPDATE cakes SET stock = stock - ? WHERE cake_id = ?";
+                
+                try (PreparedStatement itemStmt = conn.prepareStatement(itemQuery);
+                     PreparedStatement stockStmt = conn.prepareStatement(updateStockQuery)) {
+                    
                     for (OrderItem item : items) {
-                        pstmt.setInt(1, orderId);
-                        pstmt.setInt(2, item.getCake().getId());
-                        pstmt.setInt(3, item.getQuantity());
-                        pstmt.setBigDecimal(4, item.getCake().getPrice());
-                        pstmt.executeUpdate();
+                        // Add order item
+                        itemStmt.setInt(1, orderId);
+                        itemStmt.setInt(2, item.getCake().getId());
+                        itemStmt.setInt(3, item.getQuantity());
+                        itemStmt.setBigDecimal(4, item.getCake().getPrice());
+                        itemStmt.executeUpdate();
+                        
+                        // Update stock
+                        stockStmt.setInt(1, item.getQuantity());
+                        stockStmt.setInt(2, item.getCake().getId());
+                        stockStmt.executeUpdate();
                     }
                 }
 
