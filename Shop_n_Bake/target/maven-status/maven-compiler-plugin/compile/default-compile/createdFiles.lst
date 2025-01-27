@@ -1,5 +1,6 @@
 view/LoginView.class
 view/CakeEditDialog.class
+view/EmployeeView$4.class
 view/CustomerOrdersView.class
 view/RegisterView.class
 view/StockView$1.class
@@ -34,6 +35,7 @@ view/StockView.class
 view/CustomerDashboard$1.class
 view/CustomerDashboard.class
 model/Order.class
+view/EmployeeView$3.class
 view/LoginView$1.class
 view/RegisterView$3.class
 controller/OrderController.class
