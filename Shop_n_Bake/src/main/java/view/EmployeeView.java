@@ -26,6 +26,7 @@ public class EmployeeView {
     public EmployeeView(User user) {
         this.currentUser = user;
         initialize();
+        loadOrders((DefaultTableModel) ordersTable.getModel());
     }
 
     private void initialize() {
@@ -189,109 +190,84 @@ public class EmployeeView {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBackground(UIManager.BG_COLOR);
 
-        // Add refresh button
-        JButton refreshButton = UIManager.createStyledButton("Refresh Orders");
-        refreshButton.addActionListener(e -> loadOrders((DefaultTableModel) ordersTable.getModel()));
+        // Create Orders Panel with Refresh
+        JPanel ordersPanel = new JPanel(new BorderLayout());
+        JPanel orderHeaderPanel = new JPanel(new BorderLayout());
         
-        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        topPanel.setBackground(UIManager.BG_COLOR);
-        topPanel.add(refreshButton);
-        panel.add(topPanel, BorderLayout.NORTH);
-
-        // Orders Table with improved columns
-        String[] columnNames = {
-            "Order ID",
-            "Customer",
-            "Products",
-            "Total",
-            "Status",
-            "Delivery Type",
-            "Address/Time",
-            "Payment Method",
-            "Actions"
-        };
+        // Add refresh button next to "Orders" title
+        JLabel ordersTitle = new JLabel("Orders");
+        ordersTitle.setFont(new Font("Arial", Font.BOLD, 18));
+        JButton refreshButton = new JButton("↻ Refresh");
+        refreshButton.addActionListener(e -> {
+            tableModel.setRowCount(0);
+            loadOrders(tableModel);
+        });
         
-        tableModel = new DefaultTableModel(columnNames, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return column == columnNames.length - 1;
-            }
-        };
-
+        orderHeaderPanel.add(ordersTitle, BorderLayout.WEST);
+        orderHeaderPanel.add(refreshButton, BorderLayout.EAST);
+        ordersPanel.add(orderHeaderPanel, BorderLayout.NORTH);
+        
+        // Orders Table
+        String[] columns = {"Order ID", "Customer", "Items", "Total", "Status", "Delivery", "Info", "Payment", "Actions"};
+        tableModel = new DefaultTableModel(columns, 0);
         ordersTable = new JTable(tableModel);
-        ordersTable.setBackground(UIManager.BG_COLOR);
-        ordersTable.setForeground(UIManager.FG_COLOR);
-        
-        // Set up the action button column
-        ordersTable.getColumnModel().getColumn(columnNames.length - 1)
-            .setCellRenderer(new ButtonRenderer());
-        ordersTable.getColumnModel().getColumn(columnNames.length - 1)
-            .setCellEditor(new ButtonEditor(new JCheckBox()));
-        
         JScrollPane scrollPane = new JScrollPane(ordersTable);
-        panel.add(scrollPane, BorderLayout.CENTER);
-
+        ordersPanel.add(scrollPane, BorderLayout.CENTER);
+        
         // Initial load
         loadOrders(tableModel);
+        
+        panel.add(ordersPanel, BorderLayout.CENTER);
 
         return panel;
     }
 
     private void loadOrders(DefaultTableModel model) {
-        model.setRowCount(0);
         try (Connection conn = Database.getConnection()) {
-            String query = "SELECT o.order_id, u.email, o.total, o.status " +
-                          "FROM orders o JOIN users u ON o.user_id = u.user_id " +
-                          "WHERE o.status != 'closed' ORDER BY o.order_id DESC";
+            String query = """
+                SELECT o.order_id, u.email as customer_email, o.total, o.status,
+                       o.delivery_type, o.payment_method,
+                       GROUP_CONCAT(CONCAT(c.name, ' (', oi.quantity, ')') SEPARATOR ', ') as items
+                FROM orders o
+                JOIN users u ON o.user_id = u.id
+                LEFT JOIN order_items oi ON o.order_id = oi.order_id
+                LEFT JOIN cakes c ON oi.cake_id = c.cake_id
+                WHERE o.status != 'closed'
+                GROUP BY o.order_id, u.email, o.total, o.status, o.delivery_type, o.payment_method
+                ORDER BY o.created_at DESC
+                """;
             
-            try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-                ResultSet rs = pstmt.executeQuery();
+            try (Statement stmt = conn.createStatement();
+                 ResultSet rs = stmt.executeQuery(query)) {
+                model.setRowCount(0); // Clear existing rows
                 while (rs.next()) {
-                    int orderId = rs.getInt("order_id");
-                    String customer = rs.getString("email");
-                    double total = rs.getDouble("total");
-                    String status = rs.getString("status");
-                    
-                    JButton completeButton = UIManager.createStyledButton("Complete");
-                    completeButton.addActionListener(e -> handleOrderComplete(orderId));
+                    String deliveryInfo = rs.getString("delivery_type") != null && 
+                                        rs.getString("delivery_type").equals("pickup") ? 
+                                        "Pickup" : "Delivery";
                     
                     model.addRow(new Object[]{
-                        orderId,
-                        customer,
-                        getOrderProducts(orderId),
-                        String.format("€%.2f", total),
-                        status,
-                        completeButton
+                        rs.getInt("order_id"),
+                        rs.getString("customer_email"),
+                        rs.getString("items") != null ? rs.getString("items") : "No items",
+                        "€" + rs.getBigDecimal("total"),
+                        rs.getString("status"),
+                        deliveryInfo,
+                        "-",  // Placeholder for delivery info
+                        rs.getString("payment_method"),
+                        createActionButton(rs.getInt("order_id"))
                     });
                 }
             }
         } catch (SQLException e) {
             e.printStackTrace();
+            JOptionPane.showMessageDialog(frame, "Error loading orders: " + e.getMessage());
         }
     }
 
-    private String getOrderProducts(int orderId) {
-        StringBuilder products = new StringBuilder();
-        try (Connection conn = Database.getConnection()) {
-            String query = "SELECT c.name, oi.quantity FROM order_items oi " +
-                          "JOIN cakes c ON oi.cake_id = c.cake_id " +
-                          "WHERE oi.order_id = ?";
-            
-            try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-                pstmt.setInt(1, orderId);
-                ResultSet rs = pstmt.executeQuery();
-                while (rs.next()) {
-                    if (products.length() > 0) products.append(", ");
-                    products.append(rs.getString("name"))
-                           .append(" (")
-                           .append(rs.getInt("quantity"))
-                           .append(")");
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return products.toString();
+    private String createActionButton(int orderId) {
+        JButton completeButton = UIManager.createStyledButton("Complete");
+        completeButton.addActionListener(e -> handleOrderComplete(orderId));
+        return completeButton.getText();
     }
 
     private void handleOrderComplete(int orderId) {

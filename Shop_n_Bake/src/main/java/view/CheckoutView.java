@@ -500,14 +500,22 @@ public class CheckoutView {
         try (Connection conn = Database.getConnection()) {
             conn.setAutoCommit(false);
             try {
-                // Create order
-                String orderQuery = "INSERT INTO orders (user_id, total, status) VALUES (?, ?, ?)";
+                // Get delivery type and payment method
+                String deliveryType = ((JRadioButton)deliveryGroup.getElements().nextElement()).isSelected() ? 
+                                    "pickup" : "delivery";
+                String paymentMethod = getSelectedPaymentMethod();
+                
+                // Create order with additional fields
+                String orderQuery = "INSERT INTO orders (user_id, total, status, delivery_type, payment_method) " +
+                                  "VALUES (?, ?, ?, ?, ?)";
                 int orderId;
                 
                 try (PreparedStatement pstmt = conn.prepareStatement(orderQuery, Statement.RETURN_GENERATED_KEYS)) {
                     pstmt.setInt(1, user.getId());
                     pstmt.setBigDecimal(2, total);
                     pstmt.setString(3, "pending");
+                    pstmt.setString(4, deliveryType);
+                    pstmt.setString(5, paymentMethod);
                     pstmt.executeUpdate();
                     
                     try (ResultSet rs = pstmt.getGeneratedKeys()) {
