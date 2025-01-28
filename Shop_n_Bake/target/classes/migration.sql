@@ -134,4 +134,22 @@ INSERT INTO stock (name, quantity) VALUES
 DROP TABLE users_backup;
 DROP TABLE cakes_backup;
 DROP TABLE orders_backup;
-DROP TABLE order_items_backup; 
+DROP TABLE order_items_backup;
+
+-- Drop the table if it exists to avoid partial creation issues
+DROP TABLE IF EXISTS employees;
+
+-- Create employees table with correct structure
+CREATE TABLE employees (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    position VARCHAR(50) NOT NULL,
+    hire_date DATE NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- Add any existing employee data (removed salary field)
+INSERT INTO employees (user_id, position, hire_date)
+SELECT id, 'Manager', CURRENT_DATE
+FROM users
+WHERE is_employee = true; 
