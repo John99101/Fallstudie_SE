@@ -12,6 +12,7 @@ public class CakeEditDialog extends JDialog {
     private JTextField nameField;
     private JTextArea descriptionArea;
     private JTextField priceField;
+    private JTextField stockField;  // Added for stock management
     private boolean saved = false;
 
     public CakeEditDialog(JFrame parent, Cake cake) {
@@ -22,7 +23,7 @@ public class CakeEditDialog extends JDialog {
 
     private void setupDialog() {
         setLayout(new BorderLayout(10, 10));
-        setSize(400, 300);
+        setSize(400, 350);  // Increased height for stock field
         setLocationRelativeTo(getParent());
 
         // Create form panel
@@ -66,6 +67,17 @@ public class CakeEditDialog extends JDialog {
         priceField = new JTextField(String.format("%.2f", cake.getPrice()), 10);
         formPanel.add(priceField, gbc);
 
+        // Stock field
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        gbc.weightx = 0.0;
+        formPanel.add(new JLabel("Stock:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        stockField = new JTextField(String.valueOf(cake.getStockAvailability()), 10);
+        formPanel.add(stockField, gbc);
+
         add(formPanel, BorderLayout.CENTER);
 
         // Buttons panel
@@ -105,26 +117,54 @@ public class CakeEditDialog extends JDialog {
             return false;
         }
 
+        try {
+            int stock = Integer.parseInt(stockField.getText());
+            if (stock < 0) {
+                JOptionPane.showMessageDialog(this, "Stock cannot be negative");
+                return false;
+            }
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Invalid stock format");
+            return false;
+        }
+
         return true;
     }
 
     private void updateCake() {
-        try (Connection conn = Database.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(
-                 "UPDATE cakes SET name = ?, description = ?, price = ? WHERE cake_id = ?")) {
-            
-            stmt.setString(1, nameField.getText().trim());
-            stmt.setString(2, descriptionArea.getText().trim());
-            BigDecimal price = new BigDecimal(priceField.getText());
-            stmt.setBigDecimal(3, price);
-            stmt.setInt(4, cake.getCakeId());
-            
-            int rowsAffected = stmt.executeUpdate();
-            if (rowsAffected > 0) {
+        try (Connection conn = Database.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                // Update cake details
+                String updateCakeQuery = "UPDATE cakes SET name = ?, description = ?, price = ? WHERE cake_id = ?";
+                try (PreparedStatement stmt = conn.prepareStatement(updateCakeQuery)) {
+                    stmt.setString(1, nameField.getText().trim());
+                    stmt.setString(2, descriptionArea.getText().trim());
+                    stmt.setBigDecimal(3, new BigDecimal(priceField.getText()));
+                    stmt.setInt(4, cake.getCakeId());
+                    stmt.executeUpdate();
+                }
+
+                // Update stock
+                String updateStockQuery = "UPDATE stock SET quantity = ? WHERE cake_id = ?";
+                try (PreparedStatement stmt = conn.prepareStatement(updateStockQuery)) {
+                    stmt.setInt(1, Integer.parseInt(stockField.getText()));
+                    stmt.setInt(2, cake.getCakeId());
+                    stmt.executeUpdate();
+                }
+
+                conn.commit();
+                
+                // Update local cake object
                 cake.setName(nameField.getText().trim());
                 cake.setDescription(descriptionArea.getText().trim());
-                cake.setPrice(price);
+                cake.setPrice(new BigDecimal(priceField.getText()));
+                cake.setStockAvailability(Integer.parseInt(stockField.getText()));
+                
                 JOptionPane.showMessageDialog(this, "Cake updated successfully!");
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
             }
         } catch (SQLException e) {
             e.printStackTrace();

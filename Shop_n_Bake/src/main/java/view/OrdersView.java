@@ -14,7 +14,10 @@ public class OrdersView {
     private JFrame frame;
     private JTable ordersTable;
     private DefaultTableModel tableModel;
-    private final String[] STATUS_OPTIONS = {"Processing", "Baking", "Ready for Pickup", "Out for Delivery", "Delivered", "Cancelled"};
+    private final String[] STATUS_OPTIONS = {
+        "Processing", "Baking", "Ready for Pickup", 
+        "Out for Delivery", "Delivered", "Cancelled"
+    };
 
     private static final String[] COLUMN_NAMES = {
         "Order ID", "Customer Name", "Order Date", "Items", 
@@ -76,15 +79,17 @@ public class OrdersView {
 
     private void loadOrders() {
         try (Connection conn = Database.getConnection()) {
-            String query = "SELECT o.id, o.order_date, o.status, " +
-                          "o.first_name, o.last_name, o.delivery_type, o.pickup_time, " +
-                          "GROUP_CONCAT(CONCAT(c.name, ' (', oi.quantity, ')') SEPARATOR ', ') as items " +
+            String query = "SELECT o.order_id, o.created_at, o.status, " +
+                          "u.name as customer_name, " +
+                          "o.delivery_type, o.total_price, " +
+                          "GROUP_CONCAT(CONCAT(c.name, ' (', od.quantity, ')') SEPARATOR ', ') as items " +
                           "FROM orders o " +
-                          "JOIN order_items oi ON o.id = oi.order_id " +
-                          "JOIN cakes c ON oi.cake_id = c.cake_id " +
-                          "GROUP BY o.id, o.order_date, o.status, o.first_name, o.last_name, " +
-                          "o.delivery_type, o.pickup_time " +
-                          "ORDER BY o.order_date DESC";
+                          "JOIN users u ON o.user_id = u.id " +
+                          "JOIN order_details od ON o.order_id = od.order_id " +
+                          "JOIN cakes c ON od.cake_id = c.cake_id " +
+                          "GROUP BY o.order_id, o.created_at, o.status, u.name, " +
+                          "o.delivery_type, o.total_price " +
+                          "ORDER BY o.created_at DESC";
 
             try (Statement stmt = conn.createStatement();
                  ResultSet rs = stmt.executeQuery(query)) {
@@ -92,13 +97,14 @@ public class OrdersView {
                 tableModel.setRowCount(0);
                 while (rs.next()) {
                     tableModel.addRow(new Object[]{
-                        rs.getInt("id"),
-                        rs.getTimestamp("order_date"),
-                        rs.getString("status"),
-                        rs.getString("first_name") + " " + rs.getString("last_name"),
+                        rs.getInt("order_id"),
+                        rs.getString("customer_name"),
+                        rs.getTimestamp("created_at"),
+                        rs.getString("items"),
+                        String.format("$%.2f", rs.getBigDecimal("total_price")),
                         rs.getString("delivery_type"),
-                        rs.getString("pickup_time"),
-                        rs.getString("items")
+                        rs.getString("status"),
+                        "View Details"
                     });
                 }
             }
@@ -137,17 +143,17 @@ public class OrdersView {
     private void saveChanges() {
         try (Connection conn = Database.getConnection()) {
             String sql = "UPDATE orders SET status = ? WHERE order_id = ?";
-            PreparedStatement pstmt = conn.prepareStatement(sql);
-
-            for (int i = 0; i < tableModel.getRowCount(); i++) {
-                int orderId = (Integer) tableModel.getValueAt(i, 0);
-                String status = (String) tableModel.getValueAt(i, 6);
-                
-                pstmt.setString(1, status);
-                pstmt.setInt(2, orderId);
-                pstmt.executeUpdate();
+            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                for (int i = 0; i < tableModel.getRowCount(); i++) {
+                    int orderId = (Integer) tableModel.getValueAt(i, 0);
+                    String status = (String) tableModel.getValueAt(i, 6);
+                    
+                    pstmt.setString(1, status);
+                    pstmt.setInt(2, orderId);
+                    pstmt.executeUpdate();
+                }
+                JOptionPane.showMessageDialog(frame, "Changes saved successfully!");
             }
-            JOptionPane.showMessageDialog(frame, "Changes saved successfully!");
         } catch (SQLException e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(frame, "Error saving changes: " + e.getMessage());
