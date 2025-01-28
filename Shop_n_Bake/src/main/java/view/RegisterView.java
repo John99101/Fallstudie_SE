@@ -143,35 +143,62 @@ public class RegisterView {
         String confirmPassword = new String(confirmPasswordField.getPassword());
         boolean isEmployee = employeeCheckBox.isSelected();
 
-        if (email.isEmpty() || name.isEmpty() || password.isEmpty()) {
-            JOptionPane.showMessageDialog(frame, "Please fill in all fields", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        if (!password.equals(confirmPassword)) {
-            JOptionPane.showMessageDialog(frame, "Passwords do not match", "Error", JOptionPane.ERROR_MESSAGE);
+        if (!validateInputs(email, name, password, confirmPassword)) {
             return;
         }
 
         try (Connection conn = Database.getConnection()) {
-            String query = "INSERT INTO users (email, password, name, role, is_company) VALUES (?, ?, ?, ?, false)";
-            try (PreparedStatement pstmt = conn.prepareStatement(query)) {
-                pstmt.setString(1, email);
-                pstmt.setString(2, password);
-                pstmt.setString(3, name);
-                pstmt.setString(4, isEmployee ? "employee" : "customer");
-                
-                int result = pstmt.executeUpdate();
-                if (result > 0) {
-                    JOptionPane.showMessageDialog(frame, "Registration successful", "Success", JOptionPane.INFORMATION_MESSAGE);
-                    frame.dispose();
-                    new LoginView().display();
+            conn.setAutoCommit(false);
+            try {
+                // Insert into users table
+                String userQuery = "INSERT INTO users (email, password, name, is_employee) VALUES (?, ?, ?, ?)";
+                try (PreparedStatement pstmt = conn.prepareStatement(userQuery, Statement.RETURN_GENERATED_KEYS)) {
+                    pstmt.setString(1, email);
+                    pstmt.setString(2, password);
+                    pstmt.setString(3, name);
+                    pstmt.setBoolean(4, isEmployee);
+                    
+                    pstmt.executeUpdate();
+
+                    // If employee, create employee record
+                    if (isEmployee) {
+                        try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
+                            if (generatedKeys.next()) {
+                                int userId = generatedKeys.getInt(1);
+                                String empQuery = "INSERT INTO employees (user_id, position, hire_date) VALUES (?, 'New Employee', CURRENT_DATE)";
+                                try (PreparedStatement empStmt = conn.prepareStatement(empQuery)) {
+                                    empStmt.setInt(1, userId);
+                                    empStmt.executeUpdate();
+                                }
+                            }
+                        }
+                    }
                 }
+                conn.commit();
+                JOptionPane.showMessageDialog(frame, "Registration successful", "Success", JOptionPane.INFORMATION_MESSAGE);
+                frame.dispose();
+                new LoginView().display();
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
             }
         } catch (SQLException e) {
             e.printStackTrace();
-            System.err.println("SQL Error: " + e.getMessage());
             JOptionPane.showMessageDialog(frame, "Registration failed: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    private boolean validateInputs(String email, String name, String password, String confirmPassword) {
+        if (email.isEmpty() || name.isEmpty() || password.isEmpty()) {
+            JOptionPane.showMessageDialog(frame, "Please fill in all fields", "Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
+        if (!password.equals(confirmPassword)) {
+            JOptionPane.showMessageDialog(frame, "Passwords do not match", "Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
+        return true;
     }
 }

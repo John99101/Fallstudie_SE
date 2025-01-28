@@ -71,25 +71,27 @@ public class ClosedOrdersView {
 
     private void loadClosedOrders() {
         try (Connection conn = Database.getConnection()) {
-            String query = "SELECT o.id, o.order_date, " +
-                          "o.first_name, o.last_name, " +
-                          "GROUP_CONCAT(CONCAT(c.name, ' (', oi.quantity, ')') SEPARATOR ', ') as items, " +
-                          "o.status " +
+            String query = "SELECT o.order_id, o.created_at, " +
+                          "u.name as customer_name, " +
+                          "o.delivery_type, o.delivery_time, " +
+                          "GROUP_CONCAT(CONCAT(c.name, ' (', oi.quantity, ')') SEPARATOR ', ') as items " +
                           "FROM orders o " +
-                          "JOIN order_items oi ON o.id = oi.order_id " +
+                          "JOIN users u ON o.user_id = u.id " +
+                          "JOIN order_items oi ON o.order_id = oi.order_id " +
                           "JOIN cakes c ON oi.cake_id = c.cake_id " +
                           "WHERE o.status = 'Completed' " +
-                          "GROUP BY o.id, o.order_date, o.first_name, o.last_name, o.status";
+                          "GROUP BY o.order_id, o.created_at, u.name, o.delivery_type, o.delivery_time";
 
             try (Statement stmt = conn.createStatement();
                  ResultSet rs = stmt.executeQuery(query)) {
                 while (rs.next()) {
                     tableModel.addRow(new Object[]{
-                        rs.getInt("id"),
-                        rs.getTimestamp("order_date"),
-                        rs.getString("first_name") + " " + rs.getString("last_name"),
-                        rs.getString("items"),
-                        rs.getString("status")
+                        rs.getInt("order_id"),
+                        rs.getTimestamp("created_at"),
+                        rs.getString("customer_name"),
+                        rs.getString("delivery_type"),
+                        rs.getTimestamp("delivery_time"),
+                        rs.getString("items")
                     });
                 }
             }

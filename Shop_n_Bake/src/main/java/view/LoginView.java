@@ -118,7 +118,9 @@ public class LoginView {
         String password = new String(passwordField.getPassword());
 
         try (Connection conn = Database.getConnection()) {
-            String query = "SELECT * FROM users WHERE email = ? AND password = ?";
+            String query = "SELECT u.*, e.position FROM users u " +
+                          "LEFT JOIN employees e ON u.id = e.user_id " +
+                          "WHERE u.email = ? AND u.password = ?";
             try (PreparedStatement pstmt = conn.prepareStatement(query)) {
                 pstmt.setString(1, email);
                 pstmt.setString(2, password);
@@ -127,11 +129,11 @@ public class LoginView {
                 if (rs.next()) {
                     User user = new User(
                         rs.getInt("id"),
-                        email,
-                        password,
-                        email,
+                        rs.getString("email"),
+                        rs.getString("password"),
                         rs.getString("name"),
-                        rs.getString("role").equals("employee")
+                        rs.getString("email"),
+                        rs.getBoolean("is_employee")
                     );
                     
                     frame.dispose();
@@ -146,7 +148,6 @@ public class LoginView {
             }
         } catch (SQLException e) {
             e.printStackTrace();
-            System.err.println("SQL Error: " + e.getMessage());
             JOptionPane.showMessageDialog(frame, "Database error: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
